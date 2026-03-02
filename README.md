@@ -7,8 +7,6 @@
 
 MealPrep Pro es una aplicación móvil multiplataforma diseñada para simplificar la planificación de comidas, la gestión de compras y el control nutricional y financiero para personas ocupadas, especialmente estudiantes universitarios y jóvenes profesionales.
 
-Este documento define todos los **requerimientos funcionales y no funcionales** del sistema, estableciendo las bases para el desarrollo del proyecto durante un período de **3 meses** con un equipo de **4 desarrolladores**.
-
 ---
 
 ## 1.1 Objetivos del Proyecto
