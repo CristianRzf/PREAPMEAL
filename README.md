@@ -21,7 +21,7 @@ MealPrep Pro es una aplicación móvil multiplataforma diseñada para simplifica
 
 ---
 
-## 2. RESUMEN EJECUTIVO
+## 2. RESUMEN 
 
 **Nombre del Proyecto:** MealPrep Pro – Tu Chef Personal Inteligente  
 
@@ -30,7 +30,7 @@ Aplicación móvil que permite a usuarios planificar comidas semanales, generar 
 
 ### Stack Tecnológico
 
-- **Frontend:** React Native 0.73+ con TypeScript  
+- **Frontend:** React Native con TypeScript  
 - **Backend:** Firebase (Backend as a Service)  
 - **Base de Datos:** Cloud Firestore (NoSQL)  
 - **Autenticación:** Firebase Authentication  
