@@ -23,8 +23,7 @@
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.mealprepapp.firebase",
-      "googleServicesFile": "./GoogleService-Info.plist"
-
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "output": "static",
@@ -53,7 +52,8 @@
         }
       ],
       "@react-native-firebase/app",
-      "@react-native-firebase/auth"
+      "@react-native-firebase/auth",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
