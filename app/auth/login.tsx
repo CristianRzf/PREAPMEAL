@@ -18,7 +18,7 @@ export default function Login() {
 
   const handleLogin = async () => {
     if (!email || !password) {
-      alert("Por favor ingresa email y contraseña");
+      alert("Por favor ingresa email y contraseña"); 
       return;
     }
 
@@ -31,6 +31,7 @@ export default function Login() {
       );
 
       console.log("Usuario logueado:", userCredential.user?.email);
+      router.replace("/(app)/home"); // Redirige a la pantalla principal después de iniciar sesión
 
       // No hace falta navegar manualmente.
       // RootLayout detectará el usuario y redirigirá a (app)
@@ -41,6 +42,7 @@ export default function Login() {
     }
   };
 
+
   return (
     <View style={styles.container}>
       {/* Logo */}
@@ -49,7 +51,6 @@ export default function Login() {
         style={styles.logo}
       />
 
-      {/* Título */}
       <Text style={styles.title}>Iniciar sesión</Text>
 
       <Text style={styles.subtitle}>
