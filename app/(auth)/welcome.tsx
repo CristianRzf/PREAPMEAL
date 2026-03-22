@@ -19,14 +19,14 @@ export default function Welcome() {
 
       <TouchableOpacity
         style={styles.buttonPrimary}
-        onPress={() => router.push("/auth/login")}
+        onPress={() => router.push("/(auth)/login")}
       >
         <Text style={styles.buttonText}>Iniciar sesión</Text>
       </TouchableOpacity>
 
       <TouchableOpacity
         style={styles.buttonSecondary}
-        onPress={() => router.push("/auth/register")}
+        onPress={() => router.push("/(auth)/register")}
       >
         <Text style={styles.buttonSecondaryText}>Crear cuenta</Text>
       </TouchableOpacity>

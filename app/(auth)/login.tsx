@@ -1,4 +1,4 @@
-import auth from "@react-native-firebase/auth";
+import { getAuth, signInWithEmailAndPassword } from "@react-native-firebase/auth";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -25,14 +26,12 @@ export default function Login() {
     setLoading(true);
 
     try {
-      const userCredential = await auth().signInWithEmailAndPassword(
-        email,
-        password,
-      );
+const userCredential = await signInWithEmailAndPassword(getAuth(), email, password);
+
 
       console.log("Usuario logueado:", userCredential.user?.email);
       router.replace("/(app)/home"); // Redirige a la pantalla principal después de iniciar sesión
-
+      alert("¡Inicio de sesión exitoso! Bienvenido " + userCredential.user?.email);
       // No hace falta navegar manualmente.
       // RootLayout detectará el usuario y redirigirá a (app)
     } catch (error: any) {
@@ -119,7 +118,7 @@ export default function Login() {
         ¿Aún no tienes cuenta?{" "}
         <Text
           style={styles.registerLink}
-          onPress={() => router.push("/auth/register")}
+          onPress={() => router.push("/(auth)/register")}
         >
           Regístrate
         </Text>

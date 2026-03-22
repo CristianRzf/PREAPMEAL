@@ -1,4 +1,4 @@
-import auth from "@react-native-firebase/auth";
+import { getAuth, createUserWithEmailAndPassword } from "@react-native-firebase/auth";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import {
@@ -44,10 +44,8 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const userCredential = await auth().createUserWithEmailAndPassword(
-        email,
-        password,
-      );
+      const userCredential = await createUserWithEmailAndPassword(getAuth(), email, password);
+
 
       console.log("Usuario creado:", userCredential.user.email);
 
@@ -151,7 +149,7 @@ export default function Register() {
               ¿Ya tienes cuenta?{" "}
               <Text
                 style={styles.loginLink}
-                onPress={() => router.push("/auth/login")}
+                onPress={() => router.push("/(auth)/login")}
               >
                 Inicia sesión
               </Text>
