@@ -30,9 +30,9 @@ const userCredential = await signInWithEmailAndPassword(getAuth(), email, passwo
 
 
       console.log("Usuario logueado:", userCredential.user?.email);
-      router.replace("/(app)/home"); // Redirige a la pantalla principal después de iniciar sesión
+      router.replace("/(tabs)"); // Redirige a la pantalla principal después de iniciar sesión
       alert("¡Inicio de sesión exitoso! Bienvenido " + userCredential.user?.email);
-      // No hace falta navegar manualmente.
+      // No hace falta navegar manualmente.a
       // RootLayout detectará el usuario y redirigirá a (app)
     } catch (error: any) {
       alert("Error al iniciar sesión: " + error.message);

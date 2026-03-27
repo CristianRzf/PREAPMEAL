@@ -24,7 +24,7 @@ export default function RootLayout() {
     const inAuthGroup = segments[0] === "(auth)";
 
     if (user && inAuthGroup) {
-      router.replace("/(app)/home");
+      router.replace("/(tabs)");
     } else if (!user && !inAuthGroup) {
       router.replace("/(auth)/welcome");
     }
