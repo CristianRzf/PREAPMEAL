@@ -1,4 +1,4 @@
-import { getAuth, signInWithEmailAndPassword } from "@react-native-firebase/auth";
+import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
 import { router } from "expo-router";
 import { useState } from "react";
 import {

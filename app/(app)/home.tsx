@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
 import { router } from "expo-router";
-import { getAuth, signOut } from "@react-native-firebase/auth";
+import { getAuth, signOut } from "firebase/auth";
 
 export default function Home() {
 

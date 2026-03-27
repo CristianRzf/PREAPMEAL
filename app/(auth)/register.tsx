@@ -1,4 +1,4 @@
-import { getAuth, createUserWithEmailAndPassword } from "@react-native-firebase/auth";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import {
@@ -51,8 +51,7 @@ export default function Register() {
 
       alert("Cuenta creada correctamente");
 
-      // el RootLayout detectará el usuario automáticamente
-      // y redirigirá a (app)
+  
     } catch (error: any) {
       alert("Error al registrar: " + error.message);
     } finally {
