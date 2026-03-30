@@ -28,9 +28,8 @@ export default function Login() {
     try {
 const userCredential = await signInWithEmailAndPassword(getAuth(), email, password);
 
-
-      console.log("Usuario logueado:", userCredential.user?.email);
       router.replace("/(tabs)"); // Redirige a la pantalla principal después de iniciar sesión
+      console.log("Usuario logueado:", userCredential.user?.email);
       alert("¡Inicio de sesión exitoso! Bienvenido " + userCredential.user?.email);
       // No hace falta navegar manualmente.a
       // RootLayout detectará el usuario y redirigirá a (app)
@@ -68,7 +67,7 @@ const userCredential = await signInWithEmailAndPassword(getAuth(), email, passwo
         keyboardType="email-address"
       />
 
-      {/* Password */}
+      {/* Contraseña */}
       <Text style={styles.label}>Contraseña</Text>
 
       <TextInput
