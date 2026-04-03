@@ -1,4 +1,4 @@
-import { router } from "expo-router";
+import { router, Stack } from "expo-router";
 import { getAuth } from "firebase/auth";
 import {
   addDoc,
@@ -66,21 +66,15 @@ type PlanSemana = {
   };
 };
 
-// ─── Recetas hardcodeadas (muestra) ──────────────────────────────────────────
+// ─── Recetas demo ─────────────────────────────────────────────────────────────
 
 const RECETAS_DEMO: Receta[] = [
   {
     id: "r1",
     nombre: "Avena con frutas",
-    imagen:
-      "https://images.unsplash.com/photo-1517673400267-0251440c45dc?w=200",
-    calorias: 320,
-    proteinas: 12,
-    carbohidratos: 55,
-    grasas: 6,
-    tiempo: 10,
-    dificultad: "fácil",
-    tipo: ["desayuno"],
+    imagen: "https://images.unsplash.com/photo-1517673400267-0251440c45dc?w=200",
+    calorias: 320, proteinas: 12, carbohidratos: 55, grasas: 6,
+    tiempo: 10, dificultad: "fácil", tipo: ["desayuno"],
     ingredientes: [
       { nombre: "Avena", cantidad: 80, unidad: "g", precio: 800 },
       { nombre: "Leche", cantidad: 200, unidad: "ml", precio: 1200 },
@@ -90,15 +84,9 @@ const RECETAS_DEMO: Receta[] = [
   {
     id: "r2",
     nombre: "Huevos revueltos",
-    imagen:
-      "https://images.unsplash.com/photo-1510693206972-df098062cb71?w=200",
-    calorias: 280,
-    proteinas: 18,
-    carbohidratos: 5,
-    grasas: 20,
-    tiempo: 15,
-    dificultad: "fácil",
-    tipo: ["desayuno"],
+    imagen: "https://images.unsplash.com/photo-1510693206972-df098062cb71?w=200",
+    calorias: 280, proteinas: 18, carbohidratos: 5, grasas: 20,
+    tiempo: 15, dificultad: "fácil", tipo: ["desayuno"],
     ingredientes: [
       { nombre: "Huevos", cantidad: 3, unidad: "unidad", precio: 1500 },
       { nombre: "Mantequilla", cantidad: 10, unidad: "g", precio: 400 },
@@ -107,15 +95,9 @@ const RECETAS_DEMO: Receta[] = [
   {
     id: "r3",
     nombre: "Arroz con pollo",
-    imagen:
-      "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=200",
-    calorias: 520,
-    proteinas: 38,
-    carbohidratos: 62,
-    grasas: 10,
-    tiempo: 40,
-    dificultad: "intermedio",
-    tipo: ["almuerzo"],
+    imagen: "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=200",
+    calorias: 520, proteinas: 38, carbohidratos: 62, grasas: 10,
+    tiempo: 40, dificultad: "intermedio", tipo: ["almuerzo"],
     ingredientes: [
       { nombre: "Arroz", cantidad: 150, unidad: "g", precio: 1000 },
       { nombre: "Pechuga de pollo", cantidad: 200, unidad: "g", precio: 4000 },
@@ -125,15 +107,9 @@ const RECETAS_DEMO: Receta[] = [
   {
     id: "r4",
     nombre: "Ensalada César",
-    imagen:
-      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200",
-    calorias: 310,
-    proteinas: 14,
-    carbohidratos: 18,
-    grasas: 22,
-    tiempo: 15,
-    dificultad: "fácil",
-    tipo: ["almuerzo", "cena"],
+    imagen: "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200",
+    calorias: 310, proteinas: 14, carbohidratos: 18, grasas: 22,
+    tiempo: 15, dificultad: "fácil", tipo: ["almuerzo", "cena"],
     ingredientes: [
       { nombre: "Lechuga romana", cantidad: 150, unidad: "g", precio: 2000 },
       { nombre: "Pollo", cantidad: 100, unidad: "g", precio: 2500 },
@@ -143,15 +119,9 @@ const RECETAS_DEMO: Receta[] = [
   {
     id: "r5",
     nombre: "Salmón al horno",
-    imagen:
-      "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=200",
-    calorias: 420,
-    proteinas: 42,
-    carbohidratos: 8,
-    grasas: 24,
-    tiempo: 30,
-    dificultad: "intermedio",
-    tipo: ["cena"],
+    imagen: "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=200",
+    calorias: 420, proteinas: 42, carbohidratos: 8, grasas: 24,
+    tiempo: 30, dificultad: "intermedio", tipo: ["cena"],
     ingredientes: [
       { nombre: "Salmón", cantidad: 200, unidad: "g", precio: 12000 },
       { nombre: "Limón", cantidad: 1, unidad: "unidad", precio: 500 },
@@ -162,13 +132,8 @@ const RECETAS_DEMO: Receta[] = [
     id: "r6",
     nombre: "Pasta boloñesa",
     imagen: "https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=200",
-    calorias: 580,
-    proteinas: 28,
-    carbohidratos: 72,
-    grasas: 18,
-    tiempo: 45,
-    dificultad: "intermedio",
-    tipo: ["almuerzo", "cena"],
+    calorias: 580, proteinas: 28, carbohidratos: 72, grasas: 18,
+    tiempo: 45, dificultad: "intermedio", tipo: ["almuerzo", "cena"],
     ingredientes: [
       { nombre: "Pasta", cantidad: 200, unidad: "g", precio: 2000 },
       { nombre: "Carne molida", cantidad: 150, unidad: "g", precio: 4500 },
@@ -178,15 +143,9 @@ const RECETAS_DEMO: Receta[] = [
   {
     id: "r7",
     nombre: "Yogur con granola",
-    imagen:
-      "https://images.unsplash.com/photo-1505252585461-04db1eb84625?w=200",
-    calorias: 210,
-    proteinas: 10,
-    carbohidratos: 32,
-    grasas: 5,
-    tiempo: 5,
-    dificultad: "fácil",
-    tipo: ["snack", "desayuno"],
+    imagen: "https://images.unsplash.com/photo-1505252585461-04db1eb84625?w=200",
+    calorias: 210, proteinas: 10, carbohidratos: 32, grasas: 5,
+    tiempo: 5, dificultad: "fácil", tipo: ["snack", "desayuno"],
     ingredientes: [
       { nombre: "Yogur griego", cantidad: 150, unidad: "g", precio: 3000 },
       { nombre: "Granola", cantidad: 40, unidad: "g", precio: 1500 },
@@ -195,15 +154,9 @@ const RECETAS_DEMO: Receta[] = [
   {
     id: "r8",
     nombre: "Batido proteico",
-    imagen:
-      "https://images.unsplash.com/photo-1505252585461-04db1eb84625?w=200",
-    calorias: 180,
-    proteinas: 24,
-    carbohidratos: 15,
-    grasas: 3,
-    tiempo: 5,
-    dificultad: "fácil",
-    tipo: ["snack", "desayuno"],
+    imagen: "https://images.unsplash.com/photo-1505252585461-04db1eb84625?w=200",
+    calorias: 180, proteinas: 24, carbohidratos: 15, grasas: 3,
+    tiempo: 5, dificultad: "fácil", tipo: ["snack", "desayuno"],
     ingredientes: [
       { nombre: "Proteína en polvo", cantidad: 30, unidad: "g", precio: 4000 },
       { nombre: "Leche", cantidad: 250, unidad: "ml", precio: 1500 },
@@ -213,22 +166,31 @@ const RECETAS_DEMO: Receta[] = [
 ];
 
 const MEAL_LABELS: Record<MealType, string> = {
-  desayuno: "☀️ Desayuno",
-  almuerzo: "🍽️ Almuerzo",
-  cena: "🌙 Cena",
-  snack: "🍎 Snack",
+  desayuno: "Desayuno",
+  almuerzo: "Almuerzo",
+  cena: "Cena",
+  snack: "Snack",
 };
 
-const MEAL_COLORS: Record<MealType, string> = {
-  desayuno: "#FF9500",
-  almuerzo: "#34C759",
-  cena: "#5856D6",
-  snack: "#FF2D55",
-};
-
-const DIAS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const DIAS_CORTO = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MEALS: MealType[] = ["desayuno", "almuerzo", "cena", "snack"];
 const OBJETIVO_CALORIAS = 2000;
+
+// Paleta del diseño Figma
+const COLORS = {
+  bg: "#F5F0ED",
+  card: "#C4918A",       // tarjetas de stats — marrón rosado
+  cardDark: "#B07D76",   // variante más oscura
+  surface: "#FFFFFF",
+  tableHeader: "#F8F4F1",
+  tableBorder: "#EDE8E4",
+  text: "#2C1810",
+  textMuted: "#7A5C56",
+  textLight: "#FFFFFF",
+  accent: "#2D6A4F",
+  danger: "#E05050",
+  dot: "#C4918A",
+};
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -272,25 +234,17 @@ export default function Planificador() {
   const [plan, setPlan] = useState<PlanSemana>({});
   const [loading, setLoading] = useState(false);
 
-  // Modales
   const [modalAgregar, setModalAgregar] = useState(false);
   const [modalOpciones, setModalOpciones] = useState(false);
   const [modalPorciones, setModalPorciones] = useState(false);
   const [modalMover, setModalMover] = useState(false);
 
-  // Selección actual
-  const [slotActual, setSlotActual] = useState<{
-    meal: MealType;
-    fecha: string;
-  } | null>(null);
-  const [recetaSeleccionada, setRecetaSeleccionada] = useState<Receta | null>(
-    null,
-  );
+  const [slotActual, setSlotActual] = useState<{ meal: MealType; fecha: string } | null>(null);
+  const [recetaSeleccionada, setRecetaSeleccionada] = useState<Receta | null>(null);
   const [porciones, setPorciones] = useState(1);
   const [busqueda, setBusqueda] = useState("");
   const [filtroMeal, setFiltroMeal] = useState<MealType | "todas">("todas");
 
-  // Mover
   const [diaDestino, setDiaDestino] = useState<string>("");
   const [mealDestino, setMealDestino] = useState<MealType>("almuerzo");
 
@@ -298,13 +252,8 @@ export default function Planificador() {
   const auth = getAuth();
   const userId = auth.currentUser?.uid;
 
-  useEffect(() => {
-    setWeekDates(getWeekDates(weekOffset));
-  }, [weekOffset]);
-
-  useEffect(() => {
-    if (userId) cargarPlan();
-  }, [weekDates, userId]);
+  useEffect(() => { setWeekDates(getWeekDates(weekOffset)); }, [weekOffset]);
+  useEffect(() => { if (userId) cargarPlan(); }, [weekDates, userId]);
 
   // ─── Firestore ─────────────────────────────────────────────────────────────
 
@@ -327,11 +276,7 @@ export default function Planificador() {
     }
   };
 
-  const guardarSlot = async (
-    fecha: string,
-    meal: MealType,
-    slot: SlotComida,
-  ) => {
+  const guardarSlot = async (fecha: string, meal: MealType, slot: SlotComida) => {
     if (!userId) return;
     const ref = doc(db, "users", userId, "plan", fecha);
     const existing = plan[fecha] || {};
@@ -394,8 +339,7 @@ export default function Planificador() {
     Alert.alert("Eliminar receta", "¿Estás seguro?", [
       { text: "Cancelar", style: "cancel" },
       {
-        text: "Eliminar",
-        style: "destructive",
+        text: "Eliminar", style: "destructive",
         onPress: async () => {
           if (!slotActual) return;
           await eliminarSlot(slotActual.fecha, slotActual.meal);
@@ -417,10 +361,7 @@ export default function Planificador() {
     if (!slotActual) return;
     const slot = plan[slotActual.fecha]?.[slotActual.meal];
     if (!slot) return;
-    await guardarSlot(slotActual.fecha, slotActual.meal, {
-      ...slot,
-      porciones,
-    });
+    await guardarSlot(slotActual.fecha, slotActual.meal, { ...slot, porciones });
     setModalPorciones(false);
   };
 
@@ -435,24 +376,19 @@ export default function Planificador() {
     if (!slotActual) return;
     const slot = plan[slotActual.fecha]?.[slotActual.meal];
     if (!slot) return;
-
     const destinoOcupado = plan[diaDestino]?.[mealDestino];
     if (destinoOcupado) {
-      Alert.alert(
-        "Destino ocupado",
-        `Ya hay una receta en ese slot. ¿Reemplazar?`,
-        [
-          { text: "Cancelar", style: "cancel" },
-          {
-            text: "Reemplazar",
-            onPress: async () => {
-              await eliminarSlot(slotActual.fecha, slotActual.meal);
-              await guardarSlot(diaDestino, mealDestino, slot);
-              setModalMover(false);
-            },
+      Alert.alert("Destino ocupado", "¿Reemplazar la receta existente?", [
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Reemplazar",
+          onPress: async () => {
+            await eliminarSlot(slotActual.fecha, slotActual.meal);
+            await guardarSlot(diaDestino, mealDestino, slot);
+            setModalMover(false);
           },
-        ],
-      );
+        },
+      ]);
     } else {
       await eliminarSlot(slotActual.fecha, slotActual.meal);
       await guardarSlot(diaDestino, mealDestino, slot);
@@ -465,23 +401,10 @@ export default function Planificador() {
       (day) => Object.values(day || {}).filter(Boolean) as SlotComida[],
     );
     if (todasRecetas.length === 0) return;
-
     if (!userId) return;
     setLoading(true);
-
     try {
-      // Consolidar ingredientes
-      const consolidado: Record<
-        string,
-        {
-          nombre: string;
-          cantidad: number;
-          unidad: string;
-          precio: number;
-          recetas: string[];
-        }
-      > = {};
-
+      const consolidado: Record<string, { nombre: string; cantidad: number; unidad: string; precio: number; recetas: string[] }> = {};
       for (const slot of todasRecetas) {
         const receta = RECETAS_DEMO.find((r) => r.id === slot.recetaId);
         if (!receta) continue;
@@ -494,33 +417,20 @@ export default function Planificador() {
               consolidado[key].recetas.push(slot.nombre);
           } else {
             consolidado[key] = {
-              nombre: ing.nombre,
-              cantidad: ing.cantidad * slot.porciones,
-              unidad: ing.unidad,
-              precio: ing.precio * slot.porciones,
+              nombre: ing.nombre, cantidad: ing.cantidad * slot.porciones,
+              unidad: ing.unidad, precio: ing.precio * slot.porciones,
               recetas: [slot.nombre],
             };
           }
         }
       }
-
-      const items = Object.values(consolidado).map((ing) => ({
-        ...ing,
-        comprado: false,
-      }));
-
+      const items = Object.values(consolidado).map((ing) => ({ ...ing, comprado: false }));
       await addDoc(collection(db, "users", userId, "listas"), {
-        items,
-        creadoEn: serverTimestamp(),
-        completada: false,
+        items, creadoEn: serverTimestamp(), completada: false,
         totalEstimado: items.reduce((a, i) => a + i.precio, 0),
       });
-
-      Alert.alert("✅ Lista creada", "Tu lista de compras fue generada.", [
-        {
-          text: "Ver lista",
-          onPress: () => router.push("/(tabs)/listadeCompras"),
-        },
+      Alert.alert("Lista creada", "Tu lista de compras fue generada.", [
+        { text: "Ver lista", onPress: () => router.push("/(tabs)/listadeCompras") },
         { text: "OK" },
       ]);
     } catch (e) {
@@ -533,16 +443,13 @@ export default function Planificador() {
   // ─── Datos computados ──────────────────────────────────────────────────────
 
   const recetasFiltradas = RECETAS_DEMO.filter((r) => {
-    const matchBusqueda = r.nombre
-      .toLowerCase()
-      .includes(busqueda.toLowerCase());
+    const matchBusqueda = r.nombre.toLowerCase().includes(busqueda.toLowerCase());
     const matchMeal = filtroMeal === "todas" || r.tipo.includes(filtroMeal);
     return matchBusqueda && matchMeal;
   });
 
   const totalRecetas = Object.values(plan).reduce(
-    (acc, day) => acc + Object.values(day || {}).filter(Boolean).length,
-    0,
+    (acc, day) => acc + Object.values(day || {}).filter(Boolean).length, 0,
   );
 
   const resumenSemanal = weekDates.reduce(
@@ -560,241 +467,182 @@ export default function Planificador() {
     { calorias: 0, proteinas: 0, diasCompletos: 0 },
   );
 
+  const calPromedioSemana = Math.round(resumenSemanal.calorias / 7);
+  const proteinasSemana = Math.round(resumenSemanal.proteinas);
+  const recetasUnicas = new Set(
+    Object.values(plan).flatMap((day) =>
+      Object.values(day || {})
+        .filter(Boolean)
+        .map((s) => (s as SlotComida).recetaId),
+    ),
+  ).size;
+
   const selectedKey = dateKey(selectedDay);
   const dayPlan = plan[selectedKey] || {};
-  const dayNutrition = calcDayNutrition(dayPlan);
-  const caloriasProgress = Math.min(
-    dayNutrition.calorias / OBJETIVO_CALORIAS,
-    1,
-  );
 
   // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.headerTitle}>📅 Mi Semana</Text>
-          {totalRecetas > 0 && (
-            <TouchableOpacity
-              style={styles.btnLista}
-              onPress={generarListaCompras}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" size="small" />
-              ) : (
-                <Text style={styles.btnListaText}>🛒 Generar lista</Text>
-              )}
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Navegación semana */}
-        <View style={styles.weekNav}>
-          <TouchableOpacity
-            style={styles.weekBtn}
-            onPress={() => setWeekOffset((w) => w - 1)}
-          >
-            <Text style={styles.weekBtnText}>‹</Text>
-          </TouchableOpacity>
-          <Text style={styles.weekLabel}>
-            {weekDates[0]?.toLocaleDateString("es-CO", {
-              day: "numeric",
-              month: "short",
-            })}{" "}
-            –{" "}
-            {weekDates[6]?.toLocaleDateString("es-CO", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            })}
-          </Text>
-          <TouchableOpacity
-            style={styles.weekBtn}
-            onPress={() => setWeekOffset((w) => w + 1)}
-          >
-            <Text style={styles.weekBtnText}>›</Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Selector de día */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.daySelector}
-        >
-          {weekDates.map((date, i) => {
-            const key = dateKey(date);
-            const isSelected = key === selectedKey;
-            const isToday = key === dateKey(new Date());
-            const hasMeals =
-              Object.values(plan[key] || {}).filter(Boolean).length > 0;
-            return (
-              <TouchableOpacity
-                key={key}
-                style={[styles.dayChip, isSelected && styles.dayChipSelected]}
-                onPress={() => setSelectedDay(date)}
-              >
-                <Text
-                  style={[styles.dayName, isSelected && styles.dayNameSelected]}
-                >
-                  {DIAS[date.getDay()]}
-                </Text>
-                <Text
-                  style={[styles.dayNum, isSelected && styles.dayNumSelected]}
-                >
-                  {date.getDate()}
-                </Text>
-                {hasMeals && (
-                  <View
-                    style={[
-                      styles.dotMeal,
-                      isSelected && styles.dotMealSelected,
-                    ]}
-                  />
-                )}
-                {isToday && <Text style={styles.todayLabel}>hoy</Text>}
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-
-        {/* Resumen nutricional del día */}
-        <View style={styles.nutritionCard}>
-          <View style={styles.nutritionHeader}>
-            <Text style={styles.nutritionTitle}>
-              {selectedDay.toLocaleDateString("es-CO", {
-                weekday: "long",
-                day: "numeric",
-                month: "long",
-              })}
-            </Text>
-            <Text style={styles.caloriesText}>
-              {dayNutrition.calorias} / {OBJETIVO_CALORIAS} kcal
-            </Text>
-          </View>
-
-          {/* Barra progreso */}
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${caloriasProgress * 100}%`,
-                  backgroundColor:
-                    caloriasProgress > 1
-                      ? "#FF3B30"
-                      : caloriasProgress > 0.9
-                        ? "#FF9500"
-                        : "#34C759",
-                },
-              ]}
-            />
-          </View>
-
-          {/* Macros */}
-          <View style={styles.macrosRow}>
-            <View style={styles.macroItem}>
-              <View style={[styles.macroDot, { backgroundColor: "#5856D6" }]} />
-              <Text style={styles.macroLabel}>Proteínas</Text>
-              <Text style={styles.macroValue}>{dayNutrition.proteinas}g</Text>
-            </View>
-            <View style={styles.macroItem}>
-              <View style={[styles.macroDot, { backgroundColor: "#34C759" }]} />
-              <Text style={styles.macroLabel}>Carbos</Text>
-              <Text style={styles.macroValue}>
-                {dayNutrition.carbohidratos}g
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          headerTitle: () => (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <Image
+                source={require("../../Logo Chef.png")}
+                style={{ width: 55, height: 55, borderRadius: 8 }}
+              />
+              <Text style={{ fontSize: 16, fontWeight: "700", color: "#2C1810" }}>
+                Planificador
               </Text>
             </View>
-            <View style={styles.macroItem}>
-              <View style={[styles.macroDot, { backgroundColor: "#FF9500" }]} />
-              <Text style={styles.macroLabel}>Grasas</Text>
-              <Text style={styles.macroValue}>{dayNutrition.grasas}g</Text>
-            </View>
+          ),
+          headerLeft: () => null,
+          headerStyle: { backgroundColor: "#F5F0ED" },
+          headerShadowVisible: false,
+        }}
+      />
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+        {/* ── Hero tagline ── */}
+        <View style={styles.heroSection}>
+          <Text style={styles.heroText}>Organiza tus comidas de la{"\n"}semana a un solo click</Text>
+          <TouchableOpacity style={styles.heroBtn} onPress={() => abrirAgregar(selectedKey, "almuerzo")}>
+            <Text style={styles.heroBtnText}>Agregar comida</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* ── Stats cards ── */}
+        <View style={styles.statsGrid}>
+          <View style={[styles.statCard, { backgroundColor: COLORS.card }]}>
+            <Text style={styles.statNumber}>{totalRecetas}</Text>
+            <Text style={styles.statLabel}>Comidas planeadas</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: COLORS.card }]}>
+            <Text style={styles.statNumber}>{calPromedioSemana}</Text>
+            <Text style={styles.statLabel}>Cal Promedio/Día</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: COLORS.card }]}>
+            <Text style={styles.statNumber}>{proteinasSemana}</Text>
+            <Text style={styles.statLabel}>Proteína/Día</Text>
+          </View>
+          <View style={[styles.statCard, { backgroundColor: COLORS.card }]}>
+            <Text style={styles.statNumber}>{recetasUnicas}</Text>
+            <Text style={styles.statLabel}>Recetas Únicas</Text>
           </View>
         </View>
 
-        {/* Slots de comidas */}
-        <View style={styles.mealsContainer}>
-          {MEALS.map((meal) => {
-            const slot = dayPlan[meal];
-            return (
-              <View key={meal} style={styles.mealSection}>
-                <View style={styles.mealHeader}>
-                  <View
-                    style={[
-                      styles.mealDot,
-                      { backgroundColor: MEAL_COLORS[meal] },
-                    ]}
-                  />
-                  <Text style={styles.mealTitle}>{MEAL_LABELS[meal]}</Text>
-                </View>
-
-                {slot ? (
-                  <View style={styles.slotFilled}>
-                    <Image
-                      source={{ uri: slot.imagen }}
-                      style={styles.slotImage}
-                    />
-                    <View style={styles.slotInfo}>
-                      <Text style={styles.slotName} numberOfLines={1}>
-                        {slot.nombre}
-                      </Text>
-                      <Text style={styles.slotCals}>
-                        🔥 {slot.calorias * slot.porciones} kcal
-                      </Text>
-                      <Text style={styles.slotPorciones}>
-                        {slot.porciones} porción{slot.porciones > 1 ? "es" : ""}
-                      </Text>
-                    </View>
-                    <TouchableOpacity
-                      style={styles.slotMenu}
-                      onPress={() => abrirOpciones(selectedKey, meal)}
-                    >
-                      <Text style={styles.slotMenuIcon}>⋯</Text>
-                    </TouchableOpacity>
-                  </View>
-                ) : (
+        {/* ── Tabla semanal ── */}
+        <View style={styles.tableCard}>
+          {/* Encabezado de tabla */}
+          <View style={styles.tableHeaderRow}>
+            <Text style={styles.tableHeaderCell}>Semana actual</Text>
+            <View style={styles.tableHeaderDays}>
+              {weekDates.map((date) => {
+                const key = dateKey(date);
+                const isSelected = key === selectedKey;
+                const isToday = key === dateKey(new Date());
+                return (
                   <TouchableOpacity
-                    style={styles.slotEmpty}
-                    onPress={() => abrirAgregar(selectedKey, meal)}
+                    key={key}
+                    style={[styles.dayHeaderBtn, isSelected && styles.dayHeaderBtnActive]}
+                    onPress={() => setSelectedDay(date)}
                   >
-                    <Text style={styles.slotEmptyIcon}>+</Text>
-                    <Text style={styles.slotEmptyText}>Agregar receta</Text>
+                    <Text style={[styles.dayHeaderLabel, isSelected && styles.dayHeaderLabelActive]}>
+                      {DIAS_CORTO[date.getDay()]}
+                    </Text>
+                    <Text style={[styles.dayHeaderNum, isSelected && styles.dayHeaderNumActive]}>
+                      {date.getDate()}
+                    </Text>
+                    {isToday && <View style={styles.todayDot} />}
                   </TouchableOpacity>
-                )}
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Resumen semanal */}
-        <View style={styles.weekSummary}>
-          <Text style={styles.weekSummaryTitle}>📊 Resumen semanal</Text>
-          <View style={styles.weekSummaryGrid}>
-            <View style={styles.weekSummaryItem}>
-              <Text style={styles.weekSummaryValue}>
-                {Math.round(resumenSemanal.calorias / 7)}
-              </Text>
-              <Text style={styles.weekSummaryLabel}>kcal/día promedio</Text>
-            </View>
-            <View style={styles.weekSummaryItem}>
-              <Text style={styles.weekSummaryValue}>
-                {Math.round(resumenSemanal.proteinas)}g
-              </Text>
-              <Text style={styles.weekSummaryLabel}>proteínas totales</Text>
-            </View>
-            <View style={styles.weekSummaryItem}>
-              <Text style={[styles.weekSummaryValue, { color: "#2D6A4F" }]}>
-                {resumenSemanal.diasCompletos}/7
-              </Text>
-              <Text style={styles.weekSummaryLabel}>días con comidas</Text>
+                );
+              })}
             </View>
           </View>
+
+          {/* Navegación semana */}
+          <View style={styles.weekNavRow}>
+            <TouchableOpacity onPress={() => setWeekOffset((w) => w - 1)} style={styles.weekNavBtn}>
+              <Text style={styles.weekNavArrow}>{"<"}</Text>
+            </TouchableOpacity>
+            <Text style={styles.weekNavLabel}>
+              {weekDates[0]?.toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
+              {" – "}
+              {weekDates[6]?.toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}
+            </Text>
+            <TouchableOpacity onPress={() => setWeekOffset((w) => w + 1)} style={styles.weekNavBtn}>
+              <Text style={styles.weekNavArrow}>{">"}</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Filas de comidas */}
+          {MEALS.map((meal, mealIdx) => (
+            <View key={meal} style={[styles.mealRow, mealIdx < MEALS.length - 1 && styles.mealRowBorder]}>
+              {/* Label comida */}
+              <View style={styles.mealLabelCell}>
+                <Text style={styles.mealLabelText}>{MEAL_LABELS[meal]}</Text>
+              </View>
+
+              {/* Celdas por día */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayCellsScroll}>
+                <View style={styles.dayCellsRow}>
+                  {weekDates.map((date) => {
+                    const key = dateKey(date);
+                    const slot = plan[key]?.[meal];
+                    const isSelected = key === selectedKey;
+                    return (
+                      <View
+                        key={key}
+                        style={[styles.dayCell, isSelected && styles.dayCellSelected]}
+                      >
+                        {slot ? (
+                          <TouchableOpacity
+                            style={styles.slotFilledCell}
+                            onPress={() => abrirOpciones(key, meal)}
+                          >
+                            <Image source={{ uri: slot.imagen }} style={styles.slotThumb} />
+                            <Text style={styles.slotCellName} numberOfLines={1}>{slot.nombre}</Text>
+                            <Text style={styles.slotCellCals}>{slot.calorias * slot.porciones} cal</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <TouchableOpacity
+                            style={styles.slotEmptyCell}
+                            onPress={() => abrirAgregar(key, meal)}
+                          >
+                            <Text style={styles.slotEmptyPlus}>+</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            </View>
+          ))}
         </View>
 
-        <View style={{ height: 30 }} />
+        {/* ── Botones de acción inferiores ── */}
+        <TouchableOpacity
+          style={[styles.actionBtn, totalRecetas === 0 && styles.actionBtnDisabled]}
+          onPress={generarListaCompras}
+          disabled={loading || totalRecetas === 0}
+        >
+          {loading
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={styles.actionBtnText}>Generar lista de compras</Text>
+          }
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.actionBtn, styles.actionBtnOutline]}
+          onPress={() => router.push("/(tabs)/dashboradNutricional")}
+        >
+          <Text style={[styles.actionBtnText, { color: COLORS.text }]}>Ver panel nutricional</Text>
+        </TouchableOpacity>
+
+        <View style={{ height: 32 }} />
       </ScrollView>
 
       {/* ─── Modal Agregar Receta ─────────────────────────────────────────── */}
@@ -802,15 +650,13 @@ export default function Planificador() {
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setModalAgregar(false)}>
-              <Text style={styles.modalClose}>✕</Text>
+              <Text style={styles.modalClose}>X</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Agregar receta</Text>
             <View style={{ width: 30 }} />
           </View>
 
-          {/* Búsqueda */}
           <View style={styles.searchContainer}>
-            <Text style={styles.searchIcon}>🔍</Text>
             <TextInput
               style={styles.searchInput}
               placeholder="Buscar receta..."
@@ -819,27 +665,14 @@ export default function Planificador() {
             />
           </View>
 
-          {/* Filtros de tipo */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filterRow}
-          >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
             {(["todas", ...MEALS] as (MealType | "todas")[]).map((f) => (
               <TouchableOpacity
                 key={f}
-                style={[
-                  styles.filterChip,
-                  filtroMeal === f && styles.filterChipActive,
-                ]}
+                style={[styles.filterChip, filtroMeal === f && styles.filterChipActive]}
                 onPress={() => setFiltroMeal(f)}
               >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    filtroMeal === f && styles.filterChipTextActive,
-                  ]}
-                >
+                <Text style={[styles.filterChipText, filtroMeal === f && styles.filterChipTextActive]}>
                   {f === "todas" ? "Todas" : MEAL_LABELS[f as MealType]}
                 </Text>
               </TouchableOpacity>
@@ -847,82 +680,46 @@ export default function Planificador() {
           </ScrollView>
 
           {recetaSeleccionada ? (
-            // Vista de porciones
-            <ScrollView
-              contentContainerStyle={styles.porcionesView}
-              showsVerticalScrollIndicator={false}
-            >
-              <Image
-                source={{ uri: recetaSeleccionada.imagen }}
-                style={styles.recetaImagenGrande}
-              />
-              <Text style={styles.recetaNombreGrande}>
-                {recetaSeleccionada.nombre}
-              </Text>
+            <ScrollView contentContainerStyle={styles.porcionesView} showsVerticalScrollIndicator={false}>
+              <Image source={{ uri: recetaSeleccionada.imagen }} style={styles.recetaImagenGrande} />
+              <Text style={styles.recetaNombreGrande}>{recetaSeleccionada.nombre}</Text>
 
               <Text style={styles.porcionesLabel}>Número de porciones</Text>
               <View style={styles.porcionesControl}>
-                <TouchableOpacity
-                  style={styles.porcionBtn}
-                  onPress={() => setPorciones((p) => Math.max(1, p - 1))}
-                >
-                  <Text style={styles.porcionBtnText}>−</Text>
+                <TouchableOpacity style={styles.porcionBtn} onPress={() => setPorciones((p) => Math.max(1, p - 1))}>
+                  <Text style={styles.porcionBtnText}>-</Text>
                 </TouchableOpacity>
                 <Text style={styles.porcionNum}>{porciones}</Text>
-                <TouchableOpacity
-                  style={styles.porcionBtn}
-                  onPress={() => setPorciones((p) => Math.min(10, p + 1))}
-                >
+                <TouchableOpacity style={styles.porcionBtn} onPress={() => setPorciones((p) => Math.min(10, p + 1))}>
                   <Text style={styles.porcionBtnText}>+</Text>
                 </TouchableOpacity>
               </View>
 
-              {/* Preview nutricional */}
               <View style={styles.nutritionPreview}>
                 <Text style={styles.nutritionPreviewTitle}>
-                  Preview nutricional ({porciones} porción
-                  {porciones > 1 ? "es" : ""})
+                  Preview nutricional ({porciones} porción{porciones > 1 ? "es" : ""})
                 </Text>
                 <View style={styles.macrosRow}>
-                  <View style={styles.macroItem}>
-                    <Text style={styles.macroValue}>
-                      {recetaSeleccionada.calorias * porciones}
-                    </Text>
-                    <Text style={styles.macroLabel}>kcal</Text>
-                  </View>
-                  <View style={styles.macroItem}>
-                    <Text style={styles.macroValue}>
-                      {recetaSeleccionada.proteinas * porciones}g
-                    </Text>
-                    <Text style={styles.macroLabel}>proteínas</Text>
-                  </View>
-                  <View style={styles.macroItem}>
-                    <Text style={styles.macroValue}>
-                      {recetaSeleccionada.carbohidratos * porciones}g
-                    </Text>
-                    <Text style={styles.macroLabel}>carbos</Text>
-                  </View>
-                  <View style={styles.macroItem}>
-                    <Text style={styles.macroValue}>
-                      {recetaSeleccionada.grasas * porciones}g
-                    </Text>
-                    <Text style={styles.macroLabel}>grasas</Text>
-                  </View>
+                  {[
+                    { label: "kcal", value: recetaSeleccionada.calorias * porciones },
+                    { label: "proteínas", value: recetaSeleccionada.proteinas * porciones, unit: "g" },
+                    { label: "carbos", value: recetaSeleccionada.carbohidratos * porciones, unit: "g" },
+                    { label: "grasas", value: recetaSeleccionada.grasas * porciones, unit: "g" },
+                  ].map((m) => (
+                    <View key={m.label} style={styles.macroItem}>
+                      <Text style={styles.macroValue}>{m.value}{m.unit ?? ""}</Text>
+                      <Text style={styles.macroLabel}>{m.label}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
 
               <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.btnSecondary}
-                  onPress={() => setRecetaSeleccionada(null)}
-                >
-                  <Text style={styles.btnSecondaryText}>← Cambiar</Text>
+                <TouchableOpacity style={styles.btnSecondary} onPress={() => setRecetaSeleccionada(null)}>
+                  <Text style={styles.btnSecondaryText}>Cambiar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.btnPrimary}
-                  onPress={confirmarAgregar}
-                >
-                  <Text style={styles.btnPrimaryText}>✓ Confirmar</Text>
+                <TouchableOpacity style={styles.btnPrimary} onPress={confirmarAgregar}>
+                  <Text style={styles.btnPrimaryText}>Confirmar</Text>
                 </TouchableOpacity>
               </View>
             </ScrollView>
@@ -934,20 +731,12 @@ export default function Planificador() {
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.recetaCard}
-                  onPress={() => {
-                    setRecetaSeleccionada(item);
-                    setPorciones(1);
-                  }}
+                  onPress={() => { setRecetaSeleccionada(item); setPorciones(1); }}
                 >
-                  <Image
-                    source={{ uri: item.imagen }}
-                    style={styles.recetaCardImage}
-                  />
+                  <Image source={{ uri: item.imagen }} style={styles.recetaCardImage} />
                   <View style={styles.recetaCardInfo}>
                     <Text style={styles.recetaCardName}>{item.nombre}</Text>
-                    <Text style={styles.recetaCardCals}>
-                      🔥 {item.calorias} kcal · ⏱️ {item.tiempo} min
-                    </Text>
+                    <Text style={styles.recetaCardCals}>{item.calorias} kcal  -  {item.tiempo} min</Text>
                     <Text style={styles.recetaCardDif}>{item.dificultad}</Text>
                   </View>
                 </TouchableOpacity>
@@ -959,49 +748,23 @@ export default function Planificador() {
 
       {/* ─── Modal Opciones ───────────────────────────────────────────────── */}
       <Modal visible={modalOpciones} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.overlay}
-          onPress={() => setModalOpciones(false)}
-        >
+        <TouchableOpacity style={styles.overlay} onPress={() => setModalOpciones(false)}>
           <View style={styles.optionsModal}>
             <Text style={styles.optionsTitle}>Opciones</Text>
             {[
+              { label: "Cambiar porciones", onPress: handleCambiarPorciones },
               {
-                icon: "🔢",
-                label: "Cambiar porciones",
-                onPress: handleCambiarPorciones,
-              },
-              {
-                icon: "🔄",
-                label: "Reemplazar receta",
-                onPress: () => {
+                label: "Reemplazar receta", onPress: () => {
                   setModalOpciones(false);
-                  setBusqueda("");
-                  setRecetaSeleccionada(null);
-                  setPorciones(1);
+                  setBusqueda(""); setRecetaSeleccionada(null); setPorciones(1);
                   setModalAgregar(true);
                 },
               },
-              { icon: "↗️", label: "Mover a otro slot", onPress: handleMover },
-              {
-                icon: "🗑️",
-                label: "Eliminar",
-                onPress: handleEliminar,
-                danger: true,
-              },
+              { label: "Mover a otro slot", onPress: handleMover },
+              { label: "Eliminar", onPress: handleEliminar, danger: true },
             ].map((opt) => (
-              <TouchableOpacity
-                key={opt.label}
-                style={styles.optionItem}
-                onPress={opt.onPress}
-              >
-                <Text style={styles.optionIcon}>{opt.icon}</Text>
-                <Text
-                  style={[
-                    styles.optionLabel,
-                    opt.danger && { color: "#FF3B30" },
-                  ]}
-                >
+              <TouchableOpacity key={opt.label} style={styles.optionItem} onPress={opt.onPress}>
+                <Text style={[styles.optionLabel, opt.danger && { color: COLORS.danger }]}>
                   {opt.label}
                 </Text>
               </TouchableOpacity>
@@ -1016,31 +779,19 @@ export default function Planificador() {
           <View style={styles.porcionesModal}>
             <Text style={styles.modalTitle}>Cambiar porciones</Text>
             <View style={styles.porcionesControl}>
-              <TouchableOpacity
-                style={styles.porcionBtn}
-                onPress={() => setPorciones((p) => Math.max(1, p - 1))}
-              >
-                <Text style={styles.porcionBtnText}>−</Text>
+              <TouchableOpacity style={styles.porcionBtn} onPress={() => setPorciones((p) => Math.max(1, p - 1))}>
+                <Text style={styles.porcionBtnText}>-</Text>
               </TouchableOpacity>
               <Text style={styles.porcionNum}>{porciones}</Text>
-              <TouchableOpacity
-                style={styles.porcionBtn}
-                onPress={() => setPorciones((p) => Math.min(10, p + 1))}
-              >
+              <TouchableOpacity style={styles.porcionBtn} onPress={() => setPorciones((p) => Math.min(10, p + 1))}>
                 <Text style={styles.porcionBtnText}>+</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.btnSecondary}
-                onPress={() => setModalPorciones(false)}
-              >
+              <TouchableOpacity style={styles.btnSecondary} onPress={() => setModalPorciones(false)}>
                 <Text style={styles.btnSecondaryText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.btnPrimary}
-                onPress={confirmarCambiarPorciones}
-              >
+              <TouchableOpacity style={styles.btnPrimary} onPress={confirmarCambiarPorciones}>
                 <Text style={styles.btnPrimaryText}>Guardar</Text>
               </TouchableOpacity>
             </View>
@@ -1053,81 +804,46 @@ export default function Planificador() {
         <View style={styles.overlay}>
           <View style={styles.moverModal}>
             <Text style={styles.modalTitle}>Mover a...</Text>
-
             <Text style={styles.moverLabel}>Día destino</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ marginBottom: 12 }}
-            >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {weekDates.map((date) => {
                 const key = dateKey(date);
-                const isSelected = key === diaDestino;
+                const isSel = key === diaDestino;
                 return (
                   <TouchableOpacity
                     key={key}
-                    style={[
-                      styles.dayChip,
-                      isSelected && styles.dayChipSelected,
-                      { marginRight: 8 },
-                    ]}
+                    style={[styles.dayHeaderBtn, isSel && styles.dayHeaderBtnActive, { marginRight: 8 }]}
                     onPress={() => setDiaDestino(key)}
                   >
-                    <Text
-                      style={[
-                        styles.dayName,
-                        isSelected && styles.dayNameSelected,
-                      ]}
-                    >
-                      {DIAS[date.getDay()]}
+                    <Text style={[styles.dayHeaderLabel, isSel && styles.dayHeaderLabelActive]}>
+                      {DIAS_CORTO[date.getDay()]}
                     </Text>
-                    <Text
-                      style={[
-                        styles.dayNum,
-                        isSelected && styles.dayNumSelected,
-                      ]}
-                    >
+                    <Text style={[styles.dayHeaderNum, isSel && styles.dayHeaderNumActive]}>
                       {date.getDate()}
                     </Text>
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
-
             <Text style={styles.moverLabel}>Comida destino</Text>
             <View style={styles.mealChips}>
               {MEALS.map((m) => (
                 <TouchableOpacity
                   key={m}
-                  style={[
-                    styles.filterChip,
-                    mealDestino === m && styles.filterChipActive,
-                  ]}
+                  style={[styles.filterChip, mealDestino === m && styles.filterChipActive]}
                   onPress={() => setMealDestino(m)}
                 >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      mealDestino === m && styles.filterChipTextActive,
-                    ]}
-                  >
+                  <Text style={[styles.filterChipText, mealDestino === m && styles.filterChipTextActive]}>
                     {MEAL_LABELS[m]}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
-
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.btnSecondary}
-                onPress={() => setModalMover(false)}
-              >
+              <TouchableOpacity style={styles.btnSecondary} onPress={() => setModalMover(false)}>
                 <Text style={styles.btnSecondaryText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.btnPrimary}
-                onPress={confirmarMover}
-              >
+              <TouchableOpacity style={styles.btnPrimary} onPress={confirmarMover}>
                 <Text style={styles.btnPrimaryText}>Mover</Text>
               </TouchableOpacity>
             </View>
@@ -1141,178 +857,252 @@ export default function Planificador() {
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: "#F6F1F1" },
+  safeArea: { flex: 1, backgroundColor: COLORS.bg },
+  scroll: { paddingBottom: 20 },
 
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
+  // Header
+  headerRow: {
     paddingHorizontal: 20,
     paddingTop: 16,
     paddingBottom: 8,
-  },
-  headerTitle: { fontSize: 22, fontWeight: "bold", color: "#1A1A1A" },
-  btnLista: {
-    backgroundColor: "#2D6A4F",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  btnListaText: { color: "#fff", fontWeight: "600", fontSize: 13 },
-
-  weekNav: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 20,
-    marginBottom: 12,
-  },
-  weekBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-    elevation: 2,
-  },
-  weekBtnText: { fontSize: 20, color: "#2D6A4F", fontWeight: "bold" },
-  weekLabel: { fontSize: 14, color: "#555", fontWeight: "500" },
-
-  daySelector: { paddingLeft: 16, marginBottom: 16 },
-  dayChip: {
-    alignItems: "center",
-    marginRight: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 14,
-    backgroundColor: "#fff",
-    minWidth: 52,
-    elevation: 1,
-  },
-  dayChipSelected: { backgroundColor: "#2D6A4F" },
-  dayName: { fontSize: 11, color: "#888", fontWeight: "500" },
-  dayNameSelected: { color: "#fff" },
-  dayNum: { fontSize: 18, fontWeight: "bold", color: "#1A1A1A" },
-  dayNumSelected: { color: "#fff" },
-  dotMeal: {
-    width: 5,
-    height: 5,
-    borderRadius: 3,
-    backgroundColor: "#2D6A4F",
-    marginTop: 3,
-  },
-  dotMealSelected: { backgroundColor: "#fff" },
-  todayLabel: {
-    fontSize: 9,
-    color: "#FF9500",
-    fontWeight: "700",
-    marginTop: 1,
-  },
-
-  nutritionCard: {
-    marginHorizontal: 16,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
-    elevation: 2,
-  },
-  nutritionHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 10,
-  },
-  nutritionTitle: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#1A1A1A",
-    textTransform: "capitalize",
-  },
-  caloriesText: { fontSize: 13, color: "#555" },
-  progressBar: {
-    height: 8,
-    backgroundColor: "#F0F0F0",
-    borderRadius: 4,
-    marginBottom: 12,
-    overflow: "hidden",
-  },
-  progressFill: { height: "100%", borderRadius: 4 },
-  macrosRow: { flexDirection: "row", justifyContent: "space-around" },
-  macroItem: { alignItems: "center", gap: 3 },
-  macroDot: { width: 8, height: 8, borderRadius: 4 },
-  macroLabel: { fontSize: 11, color: "#888" },
-  macroValue: { fontSize: 14, fontWeight: "bold", color: "#1A1A1A" },
-
-  mealsContainer: { paddingHorizontal: 16, gap: 12 },
-  mealSection: {
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 14,
-    elevation: 1,
-  },
-  mealHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 10,
-    gap: 8,
-  },
-  mealDot: { width: 10, height: 10, borderRadius: 5 },
-  mealTitle: { fontSize: 15, fontWeight: "600", color: "#1A1A1A" },
-
-  slotFilled: { flexDirection: "row", alignItems: "center", gap: 10 },
-  slotImage: { width: 60, height: 60, borderRadius: 10 },
-  slotInfo: { flex: 1 },
-  slotName: { fontSize: 14, fontWeight: "600", color: "#1A1A1A" },
-  slotCals: { fontSize: 12, color: "#888", marginTop: 2 },
-  slotPorciones: { fontSize: 11, color: "#2D6A4F", marginTop: 1 },
-  slotMenu: { padding: 8 },
-  slotMenuIcon: { fontSize: 20, color: "#888" },
-
-  slotEmpty: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
+  },
+  headerLogo: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+  },
+  headerTitle: { fontSize: 20, fontWeight: "700", color: COLORS.text },
+
+  // Hero
+  heroSection: {
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  heroText: {
+    fontSize: 22,
+    fontWeight: "700",
+    color: COLORS.text,
+    lineHeight: 30,
+    marginBottom: 16,
+  },
+  heroBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
     paddingVertical: 10,
-    borderWidth: 1.5,
-    borderColor: "#E0E0E0",
-    borderRadius: 10,
-    borderStyle: "dashed",
-    paddingHorizontal: 14,
+    paddingHorizontal: 4,
+    marginBottom: 6,
   },
-  slotEmptyIcon: { fontSize: 20, color: "#BDBDBD" },
-  slotEmptyText: { fontSize: 14, color: "#BDBDBD" },
+  heroBtnText: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+    fontWeight: "500",
+  },
 
-  weekSummary: {
-    margin: 16,
-    backgroundColor: "#fff",
+  // Stats
+  statsGrid: {
+    paddingHorizontal: 16,
+    gap: 10,
+    marginBottom: 20,
+  },
+  statCard: {
+    borderRadius: 14,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
+    alignItems: "center",
+  },
+  statNumber: {
+    fontSize: 36,
+    fontWeight: "700",
+    color: COLORS.textLight,
+    lineHeight: 42,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: COLORS.textLight,
+    fontWeight: "500",
+    marginTop: 2,
+    opacity: 0.9,
+  },
+
+  // Tabla semanal
+  tableCard: {
+    marginHorizontal: 16,
+    backgroundColor: COLORS.surface,
     borderRadius: 16,
-    padding: 16,
-    elevation: 1,
-  },
-  weekSummaryTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#1A1A1A",
-    marginBottom: 14,
-  },
-  weekSummaryGrid: { flexDirection: "row", justifyContent: "space-around" },
-  weekSummaryItem: { alignItems: "center" },
-  weekSummaryValue: { fontSize: 22, fontWeight: "bold", color: "#1A1A1A" },
-  weekSummaryLabel: {
-    fontSize: 11,
-    color: "#888",
-    textAlign: "center",
-    marginTop: 3,
+    overflow: "hidden",
+    marginBottom: 16,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
   },
 
-  // Modales
-  modalContainer: {
-    flex: 1,
-    backgroundColor: "#F6F1F1",
-    justifyContent: "flex-start",
+  tableHeaderRow: {
+    backgroundColor: COLORS.tableHeader,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.tableBorder,
   },
+  tableHeaderCell: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: COLORS.textMuted,
+    marginBottom: 8,
+  },
+  tableHeaderDays: {
+    flexDirection: "row",
+    gap: 4,
+  },
+  dayHeaderBtn: {
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 6,
+    borderRadius: 10,
+    minWidth: 38,
+  },
+  dayHeaderBtnActive: {
+    backgroundColor: COLORS.card,
+  },
+  dayHeaderLabel: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    fontWeight: "500",
+  },
+  dayHeaderLabelActive: { color: "#fff" },
+  dayHeaderNum: {
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.text,
+  },
+  dayHeaderNumActive: { color: "#fff" },
+  todayDot: {
+    width: 4,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: COLORS.card,
+    marginTop: 2,
+  },
+
+  weekNavRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.tableBorder,
+  },
+  weekNavBtn: { padding: 4 },
+  weekNavArrow: { fontSize: 22, color: COLORS.textMuted, fontWeight: "300" },
+  weekNavLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: "500" },
+
+  // Filas de comidas en tabla
+  mealRow: {
+    flexDirection: "row",
+    minHeight: 64,
+  },
+  mealRowBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.tableBorder,
+  },
+  mealLabelCell: {
+    width: 72,
+    justifyContent: "center",
+    paddingLeft: 12,
+    paddingRight: 6,
+    borderRightWidth: 1,
+    borderRightColor: COLORS.tableBorder,
+  },
+  mealLabelText: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.text,
+  },
+
+  dayCellsScroll: { flex: 1 },
+  dayCellsRow: { flexDirection: "row" },
+  dayCell: {
+    width: 52,
+    minHeight: 64,
+    padding: 4,
+    borderRightWidth: 1,
+    borderRightColor: COLORS.tableBorder,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  dayCellSelected: {
+    backgroundColor: "#FDF7F5",
+  },
+
+  slotFilledCell: {
+    width: 44,
+    alignItems: "center",
+    gap: 2,
+  },
+  slotThumb: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+  },
+  slotCellName: {
+    fontSize: 9,
+    color: COLORS.text,
+    fontWeight: "600",
+    textAlign: "center",
+    width: 44,
+  },
+  slotCellCals: {
+    fontSize: 8,
+    color: COLORS.textMuted,
+    textAlign: "center",
+  },
+
+  slotEmptyCell: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    borderWidth: 1.5,
+    borderColor: COLORS.tableBorder,
+    borderStyle: "dashed",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  slotEmptyPlus: {
+    fontSize: 18,
+    color: COLORS.tableBorder,
+    lineHeight: 22,
+  },
+
+  // Botones de acción
+  actionBtn: {
+    marginHorizontal: 16,
+    marginTop: 10,
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: COLORS.card,
+    alignItems: "center",
+  },
+  actionBtnDisabled: { opacity: 0.5 },
+  actionBtnOutline: {
+    backgroundColor: "transparent",
+    borderWidth: 1.5,
+    borderColor: COLORS.tableBorder,
+  },
+  actionBtnText: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#fff",
+  },
+
+  // ── Modales (se mantiene igual) ──────────────────────────────────────────
+
+  modalContainer: { flex: 1, backgroundColor: COLORS.bg },
   modalHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1323,7 +1113,7 @@ const styles = StyleSheet.create({
     borderBottomColor: "#F0F0F0",
   },
   modalClose: { fontSize: 18, color: "#888", padding: 4 },
-  modalTitle: { fontSize: 17, fontWeight: "bold", color: "#1A1A1A" },
+  modalTitle: { fontSize: 17, fontWeight: "bold", color: COLORS.text },
 
   searchContainer: {
     flexDirection: "row",
@@ -1337,173 +1127,70 @@ const styles = StyleSheet.create({
   searchIcon: { fontSize: 16, marginRight: 8 },
   searchInput: { flex: 1, paddingVertical: 12, fontSize: 14 },
 
-  filterRow: {
-    paddingLeft: 16,
-    marginBottom: 8,
-    height: 50,
-    paddingVertical: 6,
-  },
+  filterRow: { paddingLeft: 16, marginBottom: 8, height: 50, paddingVertical: 6 },
   filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: "#fff",
-    marginRight: 8,
-    elevation: 1,
-    height: 34,
-    justifyContent: "center",
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20,
+    backgroundColor: "#fff", marginRight: 8, elevation: 1, height: 34, justifyContent: "center",
   },
-  filterChipActive: { backgroundColor: "#2D6A4F" },
+  filterChipActive: { backgroundColor: COLORS.card },
   filterChipText: { fontSize: 12, color: "#555" },
   filterChipTextActive: { color: "#fff", fontWeight: "600" },
 
   recetaCard: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    overflow: "hidden",
-    elevation: 2,
-    alignSelf: "stretch",
+    flexDirection: "row", backgroundColor: "#fff", borderRadius: 14,
+    overflow: "hidden", elevation: 2,
   },
-
   recetaCardImage: { width: 80, height: 80 },
   recetaCardInfo: { flex: 1, padding: 10, justifyContent: "center" },
-  recetaCardName: { fontSize: 14, fontWeight: "600", color: "#1A1A1A" },
+  recetaCardName: { fontSize: 14, fontWeight: "600", color: COLORS.text },
   recetaCardCals: { fontSize: 12, color: "#888", marginTop: 3 },
-  recetaCardDif: { fontSize: 11, color: "#2D6A4F", marginTop: 2 },
+  recetaCardDif: { fontSize: 11, color: COLORS.card, marginTop: 2 },
 
-  porcionesView: {
-    flexGrow: 1,
-    padding: 20,
-    alignItems: "center",
-    paddingBottom: 60,
-    justifyContent: "flex-start",
-  },
-  recetaImagenGrande: {
-    width: "100%",
-    height: 180,
-    borderRadius: 16,
-    marginBottom: 16,
-  },
-  recetaNombreGrande: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#1A1A1A",
-    marginBottom: 20,
-    textAlign: "center",
-  },
+  porcionesView: { flexGrow: 1, padding: 20, alignItems: "center", paddingBottom: 60 },
+  recetaImagenGrande: { width: "100%", height: 180, borderRadius: 16, marginBottom: 16 },
+  recetaNombreGrande: { fontSize: 20, fontWeight: "bold", color: COLORS.text, marginBottom: 20, textAlign: "center" },
   porcionesLabel: { fontSize: 15, color: "#555", marginBottom: 12 },
-  porcionesControl: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 20,
-    marginBottom: 20,
-  },
+  porcionesControl: { flexDirection: "row", alignItems: "center", gap: 20, marginBottom: 20 },
   porcionBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: "#2D6A4F",
-    alignItems: "center",
-    justifyContent: "center",
+    width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.card,
+    alignItems: "center", justifyContent: "center",
   },
   porcionBtnText: { fontSize: 22, color: "#fff", fontWeight: "bold" },
-  porcionNum: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: "#1A1A1A",
-    minWidth: 40,
-    textAlign: "center",
-  },
+  porcionNum: { fontSize: 32, fontWeight: "bold", color: COLORS.text, minWidth: 40, textAlign: "center" },
 
   nutritionPreview: {
-    width: "100%",
-    backgroundColor: "#F0F7F4",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 20,
+    width: "100%", backgroundColor: "#FDF7F5", borderRadius: 14, padding: 14, marginBottom: 20,
   },
-  nutritionPreviewTitle: {
-    fontSize: 13,
-    color: "#2D6A4F",
-    fontWeight: "600",
-    marginBottom: 10,
-    textAlign: "center",
-  },
+  nutritionPreviewTitle: { fontSize: 13, color: COLORS.card, fontWeight: "600", marginBottom: 10, textAlign: "center" },
+
+  macrosRow: { flexDirection: "row", justifyContent: "space-around" },
+  macroItem: { alignItems: "center", gap: 3 },
+  macroLabel: { fontSize: 11, color: "#888" },
+  macroValue: { fontSize: 14, fontWeight: "bold", color: COLORS.text },
 
   modalActions: { flexDirection: "row", gap: 12, width: "100%" },
-  btnPrimary: {
-    flex: 1,
-    backgroundColor: "#2D6A4F",
-    padding: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
+  btnPrimary: { flex: 1, backgroundColor: COLORS.card, padding: 14, borderRadius: 12, alignItems: "center" },
   btnPrimaryText: { color: "#fff", fontWeight: "bold", fontSize: 15 },
   btnSecondary: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
+    flex: 1, backgroundColor: "#fff", padding: 14, borderRadius: 12,
+    alignItems: "center", borderWidth: 1, borderColor: "#E0E0E0",
   },
   btnSecondaryText: { color: "#555", fontWeight: "600", fontSize: 15 },
 
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  optionsModal: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-  },
-  optionsTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#1A1A1A",
-    marginBottom: 16,
-    textAlign: "center",
-  },
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  optionsModal: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
+  optionsTitle: { fontSize: 16, fontWeight: "bold", color: COLORS.text, marginBottom: 16, textAlign: "center" },
   optionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F5F5F5",
+    flexDirection: "row", alignItems: "center", gap: 14,
+    paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#F5F5F5",
   },
-  optionIcon: { fontSize: 20 },
-  optionLabel: { fontSize: 15, color: "#1A1A1A" },
+  optionLabel: { fontSize: 15, color: COLORS.text },
 
   porcionesModal: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    alignItems: "center",
-    gap: 20,
+    backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    padding: 24, alignItems: "center", gap: 20,
   },
-  moverModal: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-  },
-  moverLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#555",
-    marginBottom: 8,
-  },
-  mealChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 20,
-  },
+  moverModal: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
+  moverLabel: { fontSize: 14, fontWeight: "600", color: "#555", marginBottom: 8 },
+  mealChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
 });
