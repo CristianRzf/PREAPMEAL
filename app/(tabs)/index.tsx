@@ -6,6 +6,7 @@ export default function Home() {
 
   const logout = async () => {
     await signOut(getAuth());
+    console.log("Usuario desconectado: " + getAuth().currentUser?.email);
     router.replace("/(auth)/login");  
   };
 
