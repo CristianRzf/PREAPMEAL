@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 
 type Item = {
@@ -25,11 +26,7 @@ export default function Inventario() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
 
-  const [items, setItems] = useState<Item[]>([
-    { id: "1", name: "Leche", quantity: "1L", location: "nevera", expirationDays: 2 },
-    { id: "2", name: "Arroz", quantity: "2kg", location: "despensa", expirationDays: 10 },
-    { id: "3", name: "Pollo", quantity: "500g", location: "nevera", expirationDays: 1 },
-  ]);
+  const [items, setItems] = useState<Item[]>([]);
 
   const [newName, setNewName] = useState("");
   const [newQty, setNewQty] = useState("");
