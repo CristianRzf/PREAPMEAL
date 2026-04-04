@@ -1,73 +1,174 @@
-import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
-import { TouchableOpacity, View, Text, StyleSheet, Platform } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { View, Pressable, StyleSheet, Text, Platform } from 'react-native';
+import { useLinkBuilder, useTheme } from '@react-navigation/native';
+import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { verticalScale } from 'react-native-size-matters';
+import * as Icons from 'phosphor-react-native';
+import * as React from 'react';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
 
-const TABS = [
-  {
-    name: "index",
-    label: "Recetas",
-    icon: (active: boolean) => (
-      <Text style={{ fontSize: 22 }}>{active ? "" : ""}</Text>
-    ),
-  },
-  {
-    name: "planificador",
-    label: "Mi Semana",
-    icon: (active: boolean) => (
-      <Text style={{ fontSize: 22 }}>{active ? "" : ""}</Text>
-    ),
-  },
-  {
-    name: "listadeCompras",
-    label: "Compras",
-    icon: (active: boolean) => (
-      <Text style={{ fontSize: 22 }}>{active ? "" : ""}</Text>
-    ),
-  },
-  {
-    name: "inventario",
-    label: "Inventario",
-    icon: (active: boolean) => (
-      <Text style={{ fontSize: 22 }}>{active ? "" : ""}</Text>
-    ),
-  },
-  {
-    name: "Perfil",
-    label: "Perfil",
-    icon: (active: boolean) => (
-      <Text style={{ fontSize: 22 }}>{active ? "" : ""}</Text>
-    ),
-  },
-];
+const PRIMARY_COLOR = '#000000';
+const INACTIVE_COLOR = '#AAAAAA';
 
-export default function CustomTabs({ state, navigation }: BottomTabBarProps) {
-  const insets = useSafeAreaInsets();
+const SPRING_CONFIG = { damping: 15, stiffness: 200, mass: 0.8 };
+const SLIDER_SPRING = { damping: 22, stiffness: 180, mass: 0.9 };
+
+const tabbarIcons: Record<string, (focused: boolean) => JSX.Element> = {
+  index: (focused) => (
+    <Icons.HouseIcon
+      size={verticalScale(24)}
+      weight={focused ? 'fill' : 'regular'}
+      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
+    />
+  ),
+  recetas: (focused) => (
+    <Icons.BowlFoodIcon
+      size={verticalScale(24)}
+      weight={focused ? 'fill' : 'regular'}
+      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
+    />
+  ),
+  planificador: (focused) => (
+    <Icons.CalendarCheckIcon
+      size={verticalScale(24)}
+      weight={focused ? 'fill' : 'regular'}
+      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
+    />
+  ),
+  inventario: (focused) => (
+    <Icons.ListIcon
+      size={verticalScale(24)}
+      weight={focused ? 'fill' : 'regular'}
+      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
+    />
+  ),
+  Perfil: (focused) => (
+    <Icons.UserCircleIcon
+      size={verticalScale(24)}
+      weight={focused ? 'fill' : 'regular'}
+      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
+    />
+  ),
+  listadeCompras: (focused) => (
+    <Icons.ShoppingCartSimpleIcon
+      size={verticalScale(24)}
+      weight={focused ? 'fill' : 'regular'}
+      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
+    />
+  ),
+  dashboardFinanciero: (focused) => (
+    <Icons.ChartLineIcon
+      size={verticalScale(24)}
+      weight={focused ? 'fill' : 'regular'}
+      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
+    />
+  ),
+  dashboradNutricional: (focused) => (
+    <Icons.ChartDonutIcon
+      size={verticalScale(24)}
+      weight={focused ? 'fill' : 'regular'}
+      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
+    />
+  ),
+};
+
+function TabItem({
+  route,
+  isFocused,
+  onPress,
+}: {
+  route: any;
+  isFocused: boolean;
+  onPress: () => void;
+}) {
+  const scale = useSharedValue(1);
+
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }));
 
   return (
-    <View style={[styles.container, { paddingBottom: insets.bottom || 10 }]}>
-      {TABS.map((tab, index) => {
-        const isActive = state.index === index;
+    <Pressable
+      onPressIn={() => { scale.value = withSpring(0.82, SPRING_CONFIG); }}
+      onPressOut={() => { scale.value = withSpring(1, SPRING_CONFIG); }}
+      onPress={onPress}
+      style={styles.tabItem}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isFocused }}
+    >
+      <Animated.View style={animatedStyle}>
+        {tabbarIcons[route.name]?.(isFocused)}
+      </Animated.View>
+    </Pressable>
+  );
+}
+
+export default function CustomTabs({ state, descriptors, navigation }: BottomTabBarProps) {
+  const { buildHref } = useLinkBuilder();
+  const insets = useSafeAreaInsets();
+
+  const tabCount = state.routes.length;
+  const sliderX = useSharedValue(0);
+  const [tabWidth, setTabWidth] = React.useState(0);
+
+  React.useEffect(() => {
+    if (tabWidth > 0) {
+      sliderX.value = withSpring(state.index * tabWidth, SLIDER_SPRING);
+    }
+  }, [state.index, tabWidth]);
+
+  const sliderStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: sliderX.value }],
+  }));
+
+  return (
+    <View
+      style={[
+        styles.container,
+        {
+          paddingBottom: insets.bottom > 0 ? insets.bottom : Platform.OS === 'ios' ? 20 : 8,
+        },
+      ]}
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width / tabCount;
+        setTabWidth(w);
+        // Posición inicial sin animación
+        sliderX.value = state.index * w;
+      }}
+    >
+      {/* Slider indicator */}
+      {tabWidth > 0 && (
+        <Animated.View
+          style={[styles.slider, { width: tabWidth }, sliderStyle]}
+          pointerEvents="none"
+        />
+      )}
+
+      {state.routes.map((route, index) => {
+        const isFocused = state.index === index;
+
+        const onPress = () => {
+          const event = navigation.emit({
+            type: 'tabPress',
+            target: route.key,
+            canPreventDefault: true,
+          });
+          if (!isFocused && !event.defaultPrevented) {
+            navigation.navigate(route.name, route.params);
+          }
+        };
 
         return (
-          <TouchableOpacity
-            key={tab.name}
-            style={styles.tab}
-            onPress={() => navigation.navigate(tab.name)}
-            activeOpacity={0.7}
-          >
-            {/* Indicador activo arriba */}
-            <View style={[styles.indicator, isActive && styles.indicatorActive]} />
-
-            {/* Icono con fondo activo */}
-            <View style={[styles.iconContainer, isActive && styles.iconContainerActive]}>
-              {tab.icon(isActive)}
-            </View>
-
-            {/* Label */}
-            <Text style={[styles.label, isActive && styles.labelActive]}>
-              {tab.label}
-            </Text>
-          </TouchableOpacity>
+          <TabItem
+            key={route.key}
+            route={route}
+            isFocused={isFocused}
+            onPress={onPress}
+          />
         );
       })}
     </View>
@@ -76,59 +177,25 @@ export default function CustomTabs({ state, navigation }: BottomTabBarProps) {
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: "row",
-    backgroundColor: "#FFFFFF",
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 0.5,
+    borderTopColor: '#E5E5E5',
     paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: "#F0EDED",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: -3 },
-    shadowOpacity: 0.06,
-    shadowRadius: 10,
-    elevation: 10,
+    position: 'relative',
   },
-
-  tab: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingTop: 4,
-    gap: 3,
-  },
-
-  indicator: {
-    width: 20,
+  slider: {
+    position: 'absolute',
+    top: 4,
     height: 3,
+    backgroundColor: PRIMARY_COLOR,
     borderRadius: 2,
-    backgroundColor: "transparent",
-    marginBottom: 4,
   },
-
-  indicatorActive: {
-    backgroundColor: "#2D6A4F",
-  },
-
-  iconContainer: {
-    width: 44,
-    height: 36,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "transparent",
-  },
-
-  iconContainerActive: {
-    backgroundColor: "#EAF4EF",
-  },
-
-  label: {
-    fontSize: 10,
-    color: "#AAAAAA",
-    fontWeight: "500",
-  },
-
-  labelActive: {
-    color: "#2D6A4F",
-    fontWeight: "700",
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    zIndex: 1,
   },
 });
