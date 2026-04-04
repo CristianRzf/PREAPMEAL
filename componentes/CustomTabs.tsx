@@ -17,7 +17,7 @@ const INACTIVE_COLOR = '#AAAAAA';
 const SPRING_CONFIG = { damping: 15, stiffness: 200, mass: 0.8 };
 const SLIDER_SPRING = { damping: 22, stiffness: 180, mass: 0.9 };
 
-const tabbarIcons: Record<string, (focused: boolean) => JSX.Element> = {
+const tabbarIcons: Record<string, (focused: boolean) => React.ReactElement> = {
   index: (focused) => (
     <Icons.HouseIcon
       size={verticalScale(24)}
