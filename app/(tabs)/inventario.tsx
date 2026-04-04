@@ -1,16 +1,16 @@
+import * as Notifications from "expo-notifications";
+import { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
   FlatList,
   Modal,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  Image,
 } from "react-native";
-import { useState, useEffect } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import * as Notifications from "expo-notifications";
 
 type Item = {
   id: string;
@@ -158,7 +158,13 @@ export default function Inventario() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
-        <Text style={styles.title}>Mi inventario</Text>
+        <View style={styles.header}>
+          <Image
+            source={require("../../Logo Chef.png")}
+            style={styles.logo}
+          />
+          <Text style={styles.title}> Mi inventario </Text>
+        </View>
 
         <TouchableOpacity
           style={styles.addButton}
@@ -316,14 +322,31 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F6F1F1" },
   container: { flex: 1, padding: 16 },
 
-  title: { fontSize: 24, fontWeight: "bold", marginBottom: 10 },
+  title: { fontSize: 20, fontWeight: "700", color: "#2c1810", letterSpacing: 0.3, includeFontPadding: false },
+
+  header: {
+  paddingHorizontal: 20,
+  paddingTop: 16,
+  paddingBottom: 8,
+  flexDirection: "row",
+  alignItems: "center",
+  justifyContent: "center",
+},
+
+logo: {
+  width: 60,
+  height: 60,
+  borderRadius: 5,
+  marginRight: 4,
+},
+
 
   addButton: {
-    backgroundColor: "#2D6A4F",
+    backgroundColor: "#C4918A",
     padding: 14,
     borderRadius: 12,
     alignItems: "center",
-    marginBottom: 15,
+    marginBottom: 25,
   },
 
   addText: { color: "#fff", fontWeight: "bold" },
@@ -331,7 +354,7 @@ const styles = StyleSheet.create({
   summaryContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 12,
+    marginBottom: 25,
   },
 
   summaryBox: {
@@ -369,7 +392,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#fff",
     padding: 12,
     borderRadius: 12,
-    marginBottom: 10,
+    marginBottom: 25,
     color: "#000",
   },
 
@@ -389,7 +412,7 @@ const styles = StyleSheet.create({
   },
 
   activeFilter: {
-    backgroundColor: "#2D6A4F",
+    backgroundColor: "#C4918A",
   },
 
   filterText: {
@@ -475,7 +498,7 @@ const styles = StyleSheet.create({
   },
 
   saveBtn: {
-    backgroundColor: "#2D6A4F",
+    backgroundColor: "#C4918A",
     padding: 12,
     borderRadius: 10,
     alignItems: "center",
