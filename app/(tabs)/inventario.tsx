@@ -16,13 +16,13 @@ type Item = {
   id: string;
   name: string;
   quantity: string;
-  location: "nevera" | "despensa";
+  location: "Nevera" | "Despensa";
   expirationDays: number;
 };
 
 export default function Inventario() {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"todos" | "nevera" | "despensa">("todos");
+  const [filter, setFilter] = useState<"todos" | "Nevera" | "Despensa">("todos");
   const [modalVisible, setModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
 
@@ -30,7 +30,7 @@ export default function Inventario() {
 
   const [newName, setNewName] = useState("");
   const [newQty, setNewQty] = useState("");
-  const [newLocation, setNewLocation] = useState<"nevera" | "despensa">("nevera");
+  const [newLocation, setNewLocation] = useState<"Nevera" | "Despensa">("Nevera");
   const [newDays, setNewDays] = useState("");
 
   useEffect(() => {
@@ -96,7 +96,7 @@ export default function Inventario() {
     setNewName("");
     setNewQty("");
     setNewDays("");
-    setNewLocation("nevera");
+    setNewLocation("Nevera");
     setEditingItem(null);
     setModalVisible(false);
   };
@@ -133,7 +133,7 @@ export default function Inventario() {
         <Text style={styles.itemName}>{item.name}</Text>
         <Text style={styles.itemQty}>{item.quantity}</Text>
         <Text style={styles.location}>
-          {item.location === "nevera" ? "❄️ Nevera" : "🥫 Despensa"}
+          {item.location === "Nevera" ? "❄️ Nevera" : "🥫 Despensa"}
         </Text>
       </View>
 
@@ -168,6 +168,7 @@ export default function Inventario() {
 
         <TouchableOpacity
           style={styles.addButton}
+          activeOpacity={0.7}
           onPress={() => setModalVisible(true)}
         >
           <Text style={styles.addText}>+ Agregar item</Text>
@@ -221,7 +222,7 @@ export default function Inventario() {
 
         {/* FILTROS */}
         <View style={styles.filters}>
-          {["todos", "nevera", "despensa"].map((f) => (
+          {["todos", "Nevera", "Despensa"].map((f) => (
             <TouchableOpacity
               key={f}
               style={[styles.filterBtn, filter === f && styles.activeFilter]}
@@ -271,9 +272,9 @@ export default function Inventario() {
                 <TouchableOpacity
                   style={[
                     styles.locationBtn,
-                    newLocation === "nevera" && styles.locationActive,
+                    newLocation === "Nevera" && styles.locationActive,
                   ]}
-                  onPress={() => setNewLocation("nevera")}
+                  onPress={() => setNewLocation("Nevera")}
                 >
                   <Text>❄️ Nevera</Text>
                 </TouchableOpacity>
@@ -281,9 +282,9 @@ export default function Inventario() {
                 <TouchableOpacity
                   style={[
                     styles.locationBtn,
-                    newLocation === "despensa" && styles.locationActive,
+                    newLocation === "Despensa" && styles.locationActive,
                   ]}
-                  onPress={() => setNewLocation("despensa")}
+                  onPress={() => setNewLocation("Despensa")}
                 >
                   <Text>🥫 Despensa</Text>
                 </TouchableOpacity>
@@ -343,13 +344,19 @@ logo: {
 
   addButton: {
     backgroundColor: "#C4918A",
-    padding: 14,
-    borderRadius: 12,
+    padding: 16,
+    borderRadius: 16,
     alignItems: "center",
-    marginBottom: 25,
+    marginBottom: 15,
+
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 5,
   },
 
-  addText: { color: "#fff", fontWeight: "bold" },
+  addText: { color: "#fff", fontWeight: "600", fontSize: 15, letterSpacing: 0.3 },
 
   summaryContainer: {
     flexDirection: "row",
