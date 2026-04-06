@@ -1,4 +1,5 @@
 import * as Notifications from "expo-notifications";
+import DateTimePicker from "@react-native-community/datetimepicker";
 import { useEffect, useState } from "react";
 import {
   FlatList,
@@ -11,6 +12,15 @@ import {
   Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { db, auth } from "../../config/firebase";
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  doc,
+  updateDoc,
+  deleteDoc,
+} from "firebase/firestore";
 
 type Item = {
   id: string;
@@ -32,14 +42,32 @@ export default function Inventario() {
   const [newQty, setNewQty] = useState("");
   const [newLocation, setNewLocation] = useState<"Nevera" | "Despensa">("Nevera");
   const [newDays, setNewDays] = useState("");
+  
 
   useEffect(() => {
     Notifications.requestPermissionsAsync();
   }, []);
 
   useEffect(() => {
-    checkExpirations();
-  }, [items]);
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const ref = collection(db, "users", user.uid, "pantry_inventory");
+
+  const unsubscribe = onSnapshot(ref, (snapshot) => {
+    const data: Item[] = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(doc.data() as Omit<Item, "id">),
+    }));
+
+    // ORDENAR POR URGENCIA 
+    data.sort((a, b) => a.expirationDays - b.expirationDays);
+
+    setItems(data);
+  });
+
+  return unsubscribe;
+}, []);
 
   const checkExpirations = async () => {
     for (let item of items) {
@@ -64,46 +92,47 @@ export default function Inventario() {
     setModalVisible(true);
   };
 
-  const handleSaveItem = () => {
-    if (!newName || !newQty || !newDays) return;
+  const handleSaveItem = async () => {
+  if (!newName || !newQty || !newDays) return;
 
-    if (editingItem) {
-      setItems((prev) =>
-        prev.map((item) =>
-          item.id === editingItem.id
-            ? {
-                ...item,
-                name: newName,
-                quantity: newQty,
-                location: newLocation,
-                expirationDays: Number(newDays),
-              }
-            : item
-        )
-      );
-    } else {
-      const newItem: Item = {
-        id: Date.now().toString(),
-        name: newName,
-        quantity: newQty,
-        location: newLocation,
-        expirationDays: Number(newDays),
-      };
+  const user = auth.currentUser;
+  if (!user) return;
 
-      setItems((prev) => [...prev, newItem]);
-    }
+  const ref = collection(db, "users", user.uid, "pantry_inventory");
 
-    setNewName("");
-    setNewQty("");
-    setNewDays("");
-    setNewLocation("Nevera");
-    setEditingItem(null);
-    setModalVisible(false);
-  };
+  if (editingItem) {
+    const docRef = doc(db, "users", user.uid, "pantry_inventory", editingItem.id);
 
-  const handleDelete = (id: string) => {
-    setItems((prev) => prev.filter((item) => item.id !== id));
-  };
+    await updateDoc(docRef, {
+      name: newName,
+      quantity: newQty,
+      location: newLocation,
+      expirationDays: Number(newDays),
+    });
+  } else {
+    await addDoc(ref, {
+      name: newName,
+      quantity: newQty,
+      location: newLocation,
+      expirationDays: Number(newDays),
+    });
+  }
+
+  setNewName("");
+  setNewQty("");
+  setNewDays("");
+  setNewLocation("Nevera");
+  setEditingItem(null);
+  setModalVisible(false);
+};
+
+  const handleDelete = async (id: string) => {
+  const user = auth.currentUser;
+  if (!user) return;
+
+  const docRef = doc(db, "users", user.uid, "pantry_inventory", id);
+  await deleteDoc(docRef);
+};
 
   const filteredItems = items.filter((item) => {
     const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());
@@ -133,7 +162,7 @@ export default function Inventario() {
         <Text style={styles.itemName}>{item.name}</Text>
         <Text style={styles.itemQty}>{item.quantity}</Text>
         <Text style={styles.location}>
-          {item.location === "Nevera" ? "❄️ Nevera" : "🥫 Despensa"}
+          {item.location === "Nevera" ? "Nevera" : "Despensa"}
         </Text>
       </View>
 
@@ -276,7 +305,7 @@ export default function Inventario() {
                   ]}
                   onPress={() => setNewLocation("Nevera")}
                 >
-                  <Text>❄️ Nevera</Text>
+                  <Text>Nevera</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -286,7 +315,7 @@ export default function Inventario() {
                   ]}
                   onPress={() => setNewLocation("Despensa")}
                 >
-                  <Text>🥫 Despensa</Text>
+                  <Text>Despensa</Text>
                 </TouchableOpacity>
               </View>
 
