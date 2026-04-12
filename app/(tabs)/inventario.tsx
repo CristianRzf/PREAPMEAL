@@ -21,6 +21,8 @@ import {
   updateDoc,
   deleteDoc,
 } from "firebase/firestore";
+import Constants from "expo-constants";
+
 
 type Item = {
   id: string;
@@ -44,9 +46,24 @@ export default function Inventario() {
   const [newDays, setNewDays] = useState("");
   
 
-  useEffect(() => {
-    Notifications.requestPermissionsAsync();
-  }, []);
+
+useEffect(() => {
+  const isExpoGo = Constants.appOwnership === "expo";
+  if (isExpoGo) return; 
+
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+    }),
+  });
+
+  Notifications.requestPermissionsAsync();
+}, []);
+
 
   useEffect(() => {
   const user = auth.currentUser;
@@ -70,6 +87,8 @@ export default function Inventario() {
 }, []);
 
   const checkExpirations = async () => {
+    const isExpoGo = Constants.appOwnership === "expo";
+    if (isExpoGo) return;
     for (let item of items) {
       if (item.expirationDays <= 2 && item.expirationDays > 0) {
         await Notifications.scheduleNotificationAsync({

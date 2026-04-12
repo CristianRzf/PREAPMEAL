@@ -1,4 +1,5 @@
-import { getAuth, signInWithEmailAndPassword } from "firebase/auth";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../config/firebase";
 import { router } from "expo-router";
 import { useState } from "react";
 import {
@@ -26,7 +27,7 @@ export default function Login() {
     setLoading(true);
 
     try {
-const userCredential = await signInWithEmailAndPassword(getAuth(), email, password);
+const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
       router.replace("/(tabs)"); // Redirige a la pantalla principal después de iniciar sesión
       console.log("Usuario logueado:", userCredential.user?.email);

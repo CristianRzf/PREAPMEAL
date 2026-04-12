@@ -1,4 +1,5 @@
-import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+import { createUserWithEmailAndPassword } from "firebase/auth";
+import { auth } from "../../config/firebase";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import {
@@ -44,7 +45,7 @@ export default function Register() {
     setLoading(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(getAuth(), email, password);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
 
       console.log("Usuario creado:", userCredential.user.email);
