@@ -4,7 +4,7 @@
     "slug": "Mealprep-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon-android.png",
+    "icon": "./assets/images/icon2.png",
     "scheme": "mealprepapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -33,6 +33,7 @@
       "favicon": "./assets/images/icon-android.png"
     },
     "plugins": [
+      "expo-dev-client",
       "expo-router",
       [
         "expo-splash-screen",
