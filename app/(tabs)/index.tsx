@@ -11,7 +11,7 @@ import {
   Platform,
   KeyboardAvoidingView,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { getAuth, signOut } from "firebase/auth";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useEffect, useState } from "react";
@@ -123,6 +123,12 @@ export default function Home() {
   const firstName = user?.displayName?.split(" ")[0] ?? "Chef";
 
   const [activeTab, setActiveTab] = useState<TabKey>("inicio");
+  const { tab } = useLocalSearchParams<{ tab?: string }>();
+
+useEffect(() => {
+  if (tab === "nutricion") setActiveTab("nutricion");
+  else if (tab === "finanzas") setActiveTab("finanzas");
+}, [tab]);
 
   // Inventario
   const [inventoryCount, setInventoryCount] = useState(0);

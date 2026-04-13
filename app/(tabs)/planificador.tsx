@@ -1,4 +1,4 @@
-import { router, Stack } from "expo-router";
+import { router, Stack, Tabs } from "expo-router";
 import { getAuth } from "firebase/auth";
 import {
   addDoc,
@@ -784,7 +784,7 @@ export default function Planificador() {
 
         <TouchableOpacity
           style={[styles.actionBtn, styles.actionBtnOutline]}
-          onPress={() => router.push("/(tabs)/dashboradNutricional")}
+          onPress={() => router.push("/(tabs)?tab=nutricion")}
         >
           <Text style={[styles.actionBtnText, { color: COLORS.text }]}>
             Ver panel nutricional
