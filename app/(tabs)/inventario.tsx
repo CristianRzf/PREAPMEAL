@@ -1,28 +1,26 @@
+import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
-import DateTimePicker from "@react-native-community/datetimepicker";
+import {
+  addDoc,
+  collection,
+  deleteDoc,
+  doc,
+  onSnapshot,
+  updateDoc,
+} from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
   FlatList,
+  Image,
   Modal,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
-  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { db, auth } from "../../config/firebase";
-import {
-  collection,
-  addDoc,
-  onSnapshot,
-  doc,
-  updateDoc,
-  deleteDoc,
-} from "firebase/firestore";
-import Constants from "expo-constants";
-
+import { auth, db } from "../../config/firebase";
 
 type Item = {
   id: string;
@@ -34,7 +32,9 @@ type Item = {
 
 export default function Inventario() {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"todos" | "Nevera" | "Despensa">("todos");
+  const [filter, setFilter] = useState<"todos" | "Nevera" | "Despensa">(
+    "todos",
+  );
   const [modalVisible, setModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
 
@@ -42,49 +42,48 @@ export default function Inventario() {
 
   const [newName, setNewName] = useState("");
   const [newQty, setNewQty] = useState("");
-  const [newLocation, setNewLocation] = useState<"Nevera" | "Despensa">("Nevera");
+  const [newLocation, setNewLocation] = useState<"Nevera" | "Despensa">(
+    "Nevera",
+  );
   const [newDays, setNewDays] = useState("");
-  
-
-
-useEffect(() => {
-  const isExpoGo = Constants.appOwnership === "expo";
-  if (isExpoGo) return; 
-
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    }),
-  });
-
-  Notifications.requestPermissionsAsync();
-}, []);
-
 
   useEffect(() => {
-  const user = auth.currentUser;
-  if (!user) return;
+    const isExpoGo = Constants.appOwnership === "expo";
+    if (isExpoGo) return;
 
-  const ref = collection(db, "users", user.uid, "pantry_inventory");
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+        shouldShowBanner: true,
+        shouldShowList: true,
+      }),
+    });
 
-  const unsubscribe = onSnapshot(ref, (snapshot) => {
-    const data: Item[] = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<Item, "id">),
-    }));
+    Notifications.requestPermissionsAsync();
+  }, []);
 
-    // ORDENAR POR URGENCIA 
-    data.sort((a, b) => a.expirationDays - b.expirationDays);
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-    setItems(data);
-  });
+    const ref = collection(db, "users", user.uid, "pantry_inventory");
 
-  return unsubscribe;
-}, []);
+    const unsubscribe = onSnapshot(ref, (snapshot) => {
+      const data: Item[] = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...(doc.data() as Omit<Item, "id">),
+      }));
+
+      // ORDENAR POR URGENCIA
+      data.sort((a, b) => a.expirationDays - b.expirationDays);
+
+      setItems(data);
+    });
+
+    return unsubscribe;
+  }, []);
 
   const checkExpirations = async () => {
     const isExpoGo = Constants.appOwnership === "expo";
@@ -112,51 +111,56 @@ useEffect(() => {
   };
 
   const handleSaveItem = async () => {
-  if (!newName || !newQty || !newDays) return;
+    if (!newName || !newQty || !newDays) return;
 
-  const user = auth.currentUser;
-  if (!user) return;
+    const user = auth.currentUser;
+    if (!user) return;
 
-  const ref = collection(db, "users", user.uid, "pantry_inventory");
+    const ref = collection(db, "users", user.uid, "pantry_inventory");
 
-  if (editingItem) {
-    const docRef = doc(db, "users", user.uid, "pantry_inventory", editingItem.id);
+    if (editingItem) {
+      const docRef = doc(
+        db,
+        "users",
+        user.uid,
+        "pantry_inventory",
+        editingItem.id,
+      );
 
-    await updateDoc(docRef, {
-      name: newName,
-      quantity: newQty,
-      location: newLocation,
-      expirationDays: Number(newDays),
-    });
-  } else {
-    await addDoc(ref, {
-      name: newName,
-      quantity: newQty,
-      location: newLocation,
-      expirationDays: Number(newDays),
-    });
-  }
+      await updateDoc(docRef, {
+        name: newName,
+        quantity: newQty,
+        location: newLocation,
+        expirationDays: Number(newDays),
+      });
+    } else {
+      await addDoc(ref, {
+        name: newName,
+        quantity: newQty,
+        location: newLocation,
+        expirationDays: Number(newDays),
+      });
+    }
 
-  setNewName("");
-  setNewQty("");
-  setNewDays("");
-  setNewLocation("Nevera");
-  setEditingItem(null);
-  setModalVisible(false);
-};
+    setNewName("");
+    setNewQty("");
+    setNewDays("");
+    setNewLocation("Nevera");
+    setEditingItem(null);
+    setModalVisible(false);
+  };
 
   const handleDelete = async (id: string) => {
-  const user = auth.currentUser;
-  if (!user) return;
+    const user = auth.currentUser;
+    if (!user) return;
 
-  const docRef = doc(db, "users", user.uid, "pantry_inventory", id);
-  await deleteDoc(docRef);
-};
+    const docRef = doc(db, "users", user.uid, "pantry_inventory", id);
+    await deleteDoc(docRef);
+  };
 
   const filteredItems = items.filter((item) => {
     const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());
-    const matchFilter =
-      filter === "todos" ? true : item.location === filter;
+    const matchFilter = filter === "todos" ? true : item.location === filter;
 
     return matchSearch && matchFilter;
   });
@@ -206,12 +210,16 @@ useEffect(() => {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.container}>
+        {/* ── HEADER (igual al Home) ── */}
         <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Mi Inventario</Text>
+            <Text style={styles.headerSub}>Tu despensa y nevera</Text>
+          </View>
           <Image
             source={require("../../Logo Chef.png")}
-            style={styles.logo}
+            style={styles.headerLogo}
           />
-          <Text style={styles.title}> Mi inventario </Text>
         </View>
 
         <TouchableOpacity
@@ -231,31 +239,42 @@ useEffect(() => {
 
           <View style={[styles.summaryBox, { backgroundColor: "#E6F4EA" }]}>
             <Text style={[styles.summaryNumber, { color: "#2D6A4F" }]}>
-              {items.filter(i => i.expirationDays > 7).length}
+              {items.filter((i) => i.expirationDays > 7).length}
             </Text>
             <Text style={styles.summaryLabel}>En estado</Text>
           </View>
 
           <View style={[styles.summaryBox, { backgroundColor: "#FFF4CC" }]}>
             <Text style={[styles.summaryNumber, { color: "#E9C46A" }]}>
-              {items.filter(i => i.expirationDays > 0 && i.expirationDays <= 7).length}
+              {
+                items.filter(
+                  (i) => i.expirationDays > 0 && i.expirationDays <= 7,
+                ).length
+              }
             </Text>
             <Text style={styles.summaryLabel}>Por caducar</Text>
           </View>
 
           <View style={[styles.summaryBox, { backgroundColor: "#FFE5E5" }]}>
             <Text style={[styles.summaryNumber, { color: "#E63946" }]}>
-              {items.filter(i => i.expirationDays <= 0).length}
+              {items.filter((i) => i.expirationDays <= 0).length}
             </Text>
             <Text style={styles.summaryLabel}>Caducados</Text>
           </View>
         </View>
 
         {/* ALERTA */}
-        {items.filter(i => i.expirationDays <= 2 && i.expirationDays > 0).length > 0 && (
+        {items.filter((i) => i.expirationDays <= 2 && i.expirationDays > 0)
+          .length > 0 && (
           <View style={styles.alert}>
             <Text style={styles.alertText}>
-              ⚠️ {items.filter(i => i.expirationDays <= 2 && i.expirationDays > 0).length} productos vencen pronto
+              ⚠️{" "}
+              {
+                items.filter(
+                  (i) => i.expirationDays <= 2 && i.expirationDays > 0,
+                ).length
+              }{" "}
+              productos vencen pronto
             </Text>
           </View>
         )}
@@ -276,7 +295,9 @@ useEffect(() => {
               style={[styles.filterBtn, filter === f && styles.activeFilter]}
               onPress={() => setFilter(f as any)}
             >
-              <Text style={filter === f ? styles.activeText : styles.filterText}>
+              <Text
+                style={filter === f ? styles.activeText : styles.filterText}
+              >
                 {f}
               </Text>
             </TouchableOpacity>
@@ -371,24 +392,31 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F6F1F1" },
   container: { flex: 1, padding: 16 },
 
-  title: { fontSize: 20, fontWeight: "700", color: "#2c1810", letterSpacing: 0.3, includeFontPadding: false },
-
+  // Header (igual al Home)
   header: {
-  paddingHorizontal: 20,
-  paddingTop: 16,
-  paddingBottom: 8,
-  flexDirection: "row",
-  alignItems: "center",
-  justifyContent: "center",
-},
-
-logo: {
-  width: 60,
-  height: 60,
-  borderRadius: 5,
-  marginRight: 4,
-},
-
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingHorizontal: 4,
+    paddingTop: 4,
+    paddingBottom: 16,
+  },
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: "700",
+    color: "#2c1810",
+    marginTop: 2,
+  },
+  headerSub: {
+    fontSize: 12,
+    color: "#aaa",
+    marginTop: 2,
+  },
+  headerLogo: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+  },
 
   addButton: {
     backgroundColor: "#C4918A",
@@ -404,7 +432,12 @@ logo: {
     elevation: 5,
   },
 
-  addText: { color: "#fff", fontWeight: "600", fontSize: 15, letterSpacing: 0.3 },
+  addText: {
+    color: "#fff",
+    fontWeight: "600",
+    fontSize: 15,
+    letterSpacing: 0.3,
+  },
 
   summaryContainer: {
     flexDirection: "row",
