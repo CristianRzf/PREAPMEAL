@@ -1,18 +1,46 @@
-import { View, Text, StyleSheet } from "react-native";
+import { Image, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Stack } from "expo-router";
 
 export default function ListadeCompras() {
   return (
-    <View style={styles.container}>
-      <Text style={styles.emoji}></Text>
-      <Text style={styles.title}>Lista de Compras</Text>
-      <Text style={styles.subtitle}>Próximamente...</Text>
-    </View>
+    <SafeAreaView style={styles.safe}>
+      <Stack.Screen options={{ headerShown: false }} />
+
+      {/* HEADER */}
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.headerTitle}>Lista de Compras</Text>
+          <Text style={styles.headerSub}>Organiza tus compras</Text>
+        </View>
+        <Image
+          source={require("../../Logo Chef.png")}
+          style={styles.headerLogo}
+        />
+      </View>
+
+      <View style={styles.content}>
+        <Text style={styles.title}>Próximamente...</Text>
+        <Text style={styles.subtitle}>Aquí verás tu lista de compras</Text>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F6F1F1" },
-  emoji: { fontSize: 48, marginBottom: 10 },
-  title: { fontSize: 24, fontWeight: "bold", color: "#2D6A4F" },
+  safe: { flex: 1, backgroundColor: "#F5F0ED" },
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+  headerTitle: { fontSize: 26, fontWeight: "700", color: "#2C1810", marginTop: 2 },
+  headerSub: { fontSize: 12, color: "#aaa", marginTop: 2 },
+  headerLogo: { width: 52, height: 52, borderRadius: 12 },
+  content: { flex: 1, justifyContent: "center", alignItems: "center" },
+  title: { fontSize: 24, fontWeight: "bold", color: "#2C1810" },
   subtitle: { fontSize: 14, color: "#888", marginTop: 5 },
 });

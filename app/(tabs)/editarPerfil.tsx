@@ -123,11 +123,11 @@ const chipStyles = StyleSheet.create({
     backgroundColor: "#fff",
   },
   chipActive: {
-    borderColor: "#2D6A4F",
-    backgroundColor: "#E8F5E9",
+    borderColor: "#C4918A",
+    backgroundColor: "#FFF4EE",
   },
   chipText: { fontSize: 13, color: "#666", fontWeight: "500" },
-  chipTextActive: { color: "#2D6A4F", fontWeight: "700" },
+  chipTextActive: { color: "#C4918A", fontWeight: "700" },
 });
 
 // ─── Pantalla principal ───────────────────────────────────────────────────────
@@ -238,7 +238,7 @@ export default function EditarPerfil() {
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#2D6A4F" />
+        <ActivityIndicator size="large" color="#C4918A" />
       </View>
     );
   }
@@ -373,7 +373,7 @@ export default function EditarPerfil() {
         {calculo && (
           <View style={styles.calcCard}>
             <View style={styles.calcHeader}>
-              <Ionicons name="calculator-outline" size={16} color="#2D6A4F" />
+              <Ionicons name="calculator-outline" size={16} color="#C4918A" />
               <Text style={styles.calcTitle}>Tu requerimiento diario (TDEE)</Text>
             </View>
             <Text style={styles.tdeeNumber}>{calculo.tdee} kcal/día</Text>
@@ -460,9 +460,9 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#FAFAFA",
+    backgroundColor: "#F6F1F1",
   },
-  container: { flex: 1, backgroundColor: "#FAFAFA" },
+  container: { flex: 1, backgroundColor: "#F6F1F1" },
   header: {
     flexDirection: "row",
     alignItems: "center",
@@ -483,9 +483,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginBottom: 8,
     borderWidth: 2,
-    borderColor: "#2D6A4F",
+    borderColor: "#C4918A",
   },
-  changePhoto: { fontSize: 13, color: "#2D6A4F", fontWeight: "600" },
+  changePhoto: { fontSize: 13, color: "#C4918A", fontWeight: "600" },
   form: { paddingHorizontal: 20, gap: 4 },
   field: { marginBottom: 16 },
   row2: { flexDirection: "row", gap: 12, marginBottom: 4 },
@@ -521,7 +521,7 @@ const styles = StyleSheet.create({
   atText: {
     fontSize: 15,
     fontWeight: "700",
-    color: "#2D6A4F",
+    color: "#C4918A",
   },
   usernameInput: {
     flex: 1,
@@ -536,15 +536,15 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
     borderWidth: 1.5,
-    borderColor: "#C8E6C9",
-    shadowColor: "#2D6A4F",
+    borderColor: "#F0D9D6",
+    shadowColor: "#C4918A",
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 3,
   },
   calcHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
-  calcTitle: { fontSize: 13, fontWeight: "600", color: "#2D6A4F" },
+  calcTitle: { fontSize: 13, fontWeight: "600", color: "#C4918A" },
   tdeeNumber: { fontSize: 28, fontWeight: "800", color: "#1a1a1a", marginBottom: 12 },
   macrosRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 10 },
   macroItem: { alignItems: "center", gap: 4 },
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
   alergiaText: { fontSize: 13, color: "#666", fontWeight: "500" },
   alergiaTextActive: { color: "#c62828", fontWeight: "700" },
   saveButton: {
-    backgroundColor: "#2D6A4F",
+    backgroundColor: "#C4918A",
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: "center",
