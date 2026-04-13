@@ -1,91 +1,29 @@
-import { View, Pressable, StyleSheet, Text, Platform } from 'react-native';
-import { useLinkBuilder, useTheme } from '@react-navigation/native';
+import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import { useLinkBuilder } from '@react-navigation/native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { verticalScale } from 'react-native-size-matters';
 import * as Icons from 'phosphor-react-native';
 import * as React from 'react';
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withSpring,
-} from 'react-native-reanimated';
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 
-const PRIMARY_COLOR = '#000000';
-const INACTIVE_COLOR = '#AAAAAA';
-
-const SPRING_CONFIG = { damping: 15, stiffness: 200, mass: 0.8 };
+const PRIMARY = '#2c1810';
+const INACTIVE = '#AAAAAA';
+const SPRING = { damping: 15, stiffness: 200, mass: 0.8 };
 const SLIDER_SPRING = { damping: 22, stiffness: 180, mass: 0.9 };
 
-const tabbarIcons: Record<string, (focused: boolean) => React.ReactElement> = {
-  index: (focused) => (
-    <Icons.HouseIcon
-      size={verticalScale(24)}
-      weight={focused ? 'fill' : 'regular'}
-      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
-    />
-  ),
-  recetas: (focused) => (
-    <Icons.BowlFoodIcon
-      size={verticalScale(24)}
-      weight={focused ? 'fill' : 'regular'}
-      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
-    />
-  ),
-  planificador: (focused) => (
-    <Icons.CalendarCheckIcon
-      size={verticalScale(24)}
-      weight={focused ? 'fill' : 'regular'}
-      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
-    />
-  ),
-  inventario: (focused) => (
-    <Icons.ListIcon
-      size={verticalScale(24)}
-      weight={focused ? 'fill' : 'regular'}
-      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
-    />
-  ),
-  Perfil: (focused) => (
-    <Icons.UserCircleIcon
-      size={verticalScale(24)}
-      weight={focused ? 'fill' : 'regular'}
-      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
-    />
-  ),
-  listadeCompras: (focused) => (
-    <Icons.ShoppingCartSimpleIcon
-      size={verticalScale(24)}
-      weight={focused ? 'fill' : 'regular'}
-      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
-    />
-  ),
-  dashboardFinanciero: (focused) => (
-    <Icons.ChartLineIcon
-      size={verticalScale(24)}
-      weight={focused ? 'fill' : 'regular'}
-      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
-    />
-  ),
-  dashboradNutricional: (focused) => (
-    <Icons.ChartDonutIcon
-      size={verticalScale(24)}
-      weight={focused ? 'fill' : 'regular'}
-      color={focused ? PRIMARY_COLOR : INACTIVE_COLOR}
-    />
-  ),
+const TAB_CONFIG: Record<string, { icon: string; label: string }> = {
+  index:          { icon: 'House',                label: 'Inicio' },
+  recetas:        { icon: 'BowlFood',             label: 'Recetas' },
+  planificador:   { icon: 'CalendarCheck',        label: 'Plan' },
+  inventario:     { icon: 'List',                 label: 'Inventario' },
+  listadeCompras: { icon: 'ShoppingCartSimple',   label: 'Lista' },
+  Perfil:         { icon: 'UserCircle',           label: 'Perfil' },
 };
 
-function TabItem({
-  route,
-  isFocused,
-  onPress,
-}: {
-  route: any;
-  isFocused: boolean;
-  onPress: () => void;
-}) {
+function TabItem({ route, isFocused, onPress }: { route: any; isFocused: boolean; onPress: () => void }) {
   const scale = useSharedValue(1);
+  const config = TAB_CONFIG[route.name];
+  const IconComp = config ? (Icons as any)[`${config.icon}Icon`] : null;
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -93,23 +31,32 @@ function TabItem({
 
   return (
     <Pressable
-      onPressIn={() => { scale.value = withSpring(0.82, SPRING_CONFIG); }}
-      onPressOut={() => { scale.value = withSpring(1, SPRING_CONFIG); }}
+      onPressIn={() => { scale.value = withSpring(0.82, SPRING); }}
+      onPressOut={() => { scale.value = withSpring(1, SPRING); }}
       onPress={onPress}
       style={styles.tabItem}
       accessibilityRole="button"
       accessibilityState={{ selected: isFocused }}
     >
-      <Animated.View style={animatedStyle}>
-        {tabbarIcons[route.name]?.(isFocused)}
+      <Animated.View style={[styles.iconWrapper, animatedStyle]}>
+        {IconComp && (
+          <IconComp
+            size={24}
+            weight={isFocused ? 'fill' : 'regular'}
+            color={isFocused ? PRIMARY : INACTIVE}
+          />
+        )}
+        <Text style={[styles.label, { color: isFocused ? PRIMARY : INACTIVE }]}>
+          {config?.label}
+        </Text>
       </Animated.View>
     </Pressable>
   );
 }
 
-export default function CustomTabs({ state, descriptors, navigation }: BottomTabBarProps) {
-  const { buildHref } = useLinkBuilder();
+export default function CustomTabs({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const { buildHref } = useLinkBuilder();
 
   const tabCount = state.routes.length;
   const sliderX = useSharedValue(0);
@@ -129,18 +76,15 @@ export default function CustomTabs({ state, descriptors, navigation }: BottomTab
     <View
       style={[
         styles.container,
-        {
-          paddingBottom: insets.bottom > 0 ? insets.bottom : Platform.OS === 'ios' ? 20 : 8,
-        },
+        { paddingBottom: insets.bottom > 0 ? insets.bottom : Platform.OS === 'ios' ? 20 : 10 },
       ]}
       onLayout={(e) => {
         const w = e.nativeEvent.layout.width / tabCount;
         setTabWidth(w);
-        // Posición inicial sin animación
         sliderX.value = state.index * w;
       }}
     >
-      {/* Slider indicator */}
+      {/* Slider superior */}
       {tabWidth > 0 && (
         <Animated.View
           style={[styles.slider, { width: tabWidth }, sliderStyle]}
@@ -150,26 +94,13 @@ export default function CustomTabs({ state, descriptors, navigation }: BottomTab
 
       {state.routes.map((route, index) => {
         const isFocused = state.index === index;
-
         const onPress = () => {
-          const event = navigation.emit({
-            type: 'tabPress',
-            target: route.key,
-            canPreventDefault: true,
-          });
+          const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (!isFocused && !event.defaultPrevented) {
             navigation.navigate(route.name, route.params);
           }
         };
-
-        return (
-          <TabItem
-            key={route.key}
-            route={route}
-            isFocused={isFocused}
-            onPress={onPress}
-          />
-        );
+        return <TabItem key={route.key} route={route} isFocused={isFocused} onPress={onPress} />;
       })}
     </View>
   );
@@ -186,16 +117,24 @@ const styles = StyleSheet.create({
   },
   slider: {
     position: 'absolute',
-    top: 4,
-    height: 3,
-    backgroundColor: PRIMARY_COLOR,
+    top: 0,
+    height: 2.5,
+    backgroundColor: PRIMARY,
     borderRadius: 2,
   },
   tabItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
+    paddingVertical: 6,
     zIndex: 1,
+  },
+  iconWrapper: {
+    alignItems: 'center',
+    gap: 3,
+  },
+  label: {
+    fontSize: 10,
+    fontWeight: '500',
   },
 });
