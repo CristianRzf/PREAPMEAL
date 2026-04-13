@@ -44,7 +44,9 @@ export default function Inventario() {
   const [items, setItems] = useState<Item[]>([]);
 
   const [newName, setNewName] = useState("");
-  const [newQty, setNewQty] = useState("");
+
+  const [newQtyNumber, setNewQtyNumber] = useState("");
+  const [newUnit, setNewUnit] = useState("");
   const [newLocation, setNewLocation] = useState<"Nevera" | "Despensa">(
     "Nevera",
   );
@@ -151,7 +153,10 @@ export default function Inventario() {
   const openEditModal = (item: Item) => {
     setEditingItem(item);
     setNewName(item.name);
-    setNewQty(item.quantity);
+
+    const parts = item.quantity.split(" ");
+    setNewQtyNumber(parts[0] || "");
+    setNewUnit(parts[1] || "");
     setNewLocation(item.location);
     setNewDays(item.expirationDays.toString());
 
@@ -163,7 +168,7 @@ export default function Inventario() {
   };
 
   const handleSaveItem = async () => {
-    if (!newName || !newQty || !newDays) return;
+    if (!newName || !newQtyNumber || !newUnit || !newDays) return;
 
     const user = auth.currentUser;
     if (!user) return;
@@ -190,7 +195,7 @@ export default function Inventario() {
 
       await updateDoc(docRef, {
         name: newName,
-        quantity: newQty,
+        quantity: `${newQtyNumber} ${newUnit}`,
         location: newLocation,
         expirationDays: Number(newDays),
         expirationDate: expirationDate?.toISOString(),
@@ -199,7 +204,7 @@ export default function Inventario() {
     } else {
       await addDoc(ref, {
         name: newName,
-        quantity: newQty,
+        quantity: `${newQtyNumber} ${newUnit}`,
         location: newLocation,
         expirationDays: Number(newDays),
         expirationDate: expirationDate?.toISOString(),
@@ -208,7 +213,8 @@ export default function Inventario() {
     }
 
     setNewName("");
-    setNewQty("");
+    setNewQtyNumber("");
+    setNewUnit("");
     setNewDays("");
     setExpirationDate(null);
     setNewLocation("Nevera");
@@ -398,11 +404,29 @@ export default function Inventario() {
 
               <Text style={styles.label}>Cantidad</Text>
               <TextInput
-                placeholder="Ej: 1L o 500g"
+                placeholder="Cantidad"
                 style={styles.input}
-                value={newQty}
-                onChangeText={setNewQty}
+                keyboardType="numeric"
+                value={newQtyNumber}
+                onChangeText={setNewQtyNumber}
               />
+
+              <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 10 }}>
+                {["L", "g", "kg", "ml", "unidad"].map((unit) => (
+                  <TouchableOpacity
+                    key={unit}
+                    style={[
+                      styles.unitBtn,
+                      newUnit === unit && styles.unitActive,
+                    ]}
+                    onPress={() => setNewUnit(unit)}
+                  >
+                    <Text style={newUnit === unit ? styles.unitTextActive : styles.unitText}>
+                      {unit}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
 
               <Text style={styles.label}>Ubicación</Text>
               <View style={styles.row}>
@@ -617,6 +641,29 @@ const styles = StyleSheet.create({
 
   itemName: { fontSize: 16, fontWeight: "bold" },
   itemQty: { fontSize: 12, color: "#666" },
+
+  unitBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "#eee",
+    borderRadius: 10,
+    alignItems: "center",
+    marginRight: 6,
+    marginBottom: 6,
+  },
+
+  unitActive: {
+    backgroundColor: "#C4918A",
+  },
+
+  unitText: {
+    color: "#555",
+  },
+
+  unitTextActive: {
+    color: "#fff",
+    fontWeight: "bold",
+  },
 
   location: {
     fontSize: 11,
