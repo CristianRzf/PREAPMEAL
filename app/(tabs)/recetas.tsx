@@ -436,8 +436,8 @@ export default function RecetasScreen() {
       </Modal>
 
       {/* ─── Modal Publicar ───────────────────────────────────────────────── */}
-      <Modal visible={modalSubir} animationType="slide" statusBarTranslucent>
-        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+      <Modal visible={modalSubir} animationType="slide">
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top", "left", "right"]}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setModalSubir(false)}>
               <Ionicons name="chevron-down" size={26} color={COLORS.text} />
