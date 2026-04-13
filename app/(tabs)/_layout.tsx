@@ -14,8 +14,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="planificador" />
       <Tabs.Screen name="inventario" />
       <Tabs.Screen name="listadeCompras" />
-      <Tabs.Screen name="dashboardFinanciero" />
-      <Tabs.Screen name="dashboradNutricional" />
       <Tabs.Screen name="Perfil" />
 
     </Tabs>
