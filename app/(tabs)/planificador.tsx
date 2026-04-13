@@ -1,5 +1,6 @@
 import { router, Stack } from "expo-router";
-import { getAuth } from "firebase/auth";
+import { getAuth, signOut } from "firebase/auth";
+import * as Icons from "phosphor-react-native";
 import {
   addDoc,
   collection,
@@ -484,52 +485,38 @@ export default function Planificador() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          headerTitle: () => (
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Image
-                source={require("../../Logo Chef.png")}
-                style={{ width: 55, height: 55, borderRadius: 8 }}
-              />
-              <Text style={{ fontSize: 16, fontWeight: "700", color: "#2C1810" }}>
-                Planificador
-              </Text>
-            </View>
-          ),
-          headerLeft: () => null,
-          headerStyle: { backgroundColor: "#F5F0ED" },
-          headerShadowVisible: false,
-        }}
-      />
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
 
-        {/* ── Hero tagline ── */}
-        <View style={styles.heroSection}>
-          <Text style={styles.heroText}>Organiza tus comidas de la{"\n"}semana a un solo click</Text>
-          <TouchableOpacity style={styles.heroBtn} onPress={() => abrirAgregar(selectedKey, "almuerzo")}>
-            <Text style={styles.heroBtnText}>Agregar comida</Text>
-          </TouchableOpacity>
+        {/* ── HEADER (igual al Home) ── */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>Planificador</Text>
+            <Text style={styles.headerSub}>Organiza tu semana</Text>
+          </View>
+          <Image
+            source={require("../../Logo Chef.png")}
+            style={styles.headerLogo}
+          />
         </View>
 
-        {/* ── Stats cards ── */}
+        {/* ── Stats cards — 1 fila de 4 ── */}
         <View style={styles.statsGrid}>
           <View style={[styles.statCard, { backgroundColor: COLORS.card }]}>
             <Text style={styles.statNumber}>{totalRecetas}</Text>
-            <Text style={styles.statLabel}>Comidas planeadas</Text>
+            <Text style={styles.statLabel}>Comidas</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: COLORS.card }]}>
+          <View style={[styles.statCard, { backgroundColor: COLORS.cardDark }]}>
             <Text style={styles.statNumber}>{calPromedioSemana}</Text>
-            <Text style={styles.statLabel}>Cal Promedio/Día</Text>
+            <Text style={styles.statLabel}>Cal/Día</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: COLORS.card }]}>
             <Text style={styles.statNumber}>{proteinasSemana}</Text>
-            <Text style={styles.statLabel}>Proteína/Día</Text>
+            <Text style={styles.statLabel}>Proteína</Text>
           </View>
-          <View style={[styles.statCard, { backgroundColor: COLORS.card }]}>
+          <View style={[styles.statCard, { backgroundColor: COLORS.cardDark }]}>
             <Text style={styles.statNumber}>{recetasUnicas}</Text>
-            <Text style={styles.statLabel}>Recetas Únicas</Text>
+            <Text style={styles.statLabel}>Recetas</Text>
           </View>
         </View>
 
@@ -860,72 +847,65 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { paddingBottom: 20 },
 
-  // Header
-  headerRow: {
+  // Header (igual al Home)
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
+    paddingBottom: 16,
   },
-  headerLogo: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-  },
-  headerTitle: { fontSize: 20, fontWeight: "700", color: COLORS.text },
-
-  // Hero
-  heroSection: {
-    paddingHorizontal: 20,
-    paddingBottom: 20,
-  },
-  heroText: {
-    fontSize: 22,
+  headerTitle: {
+    fontSize: 26,
     fontWeight: "700",
     color: COLORS.text,
-    lineHeight: 30,
-    marginBottom: 16,
+    marginTop: 2,
   },
-  heroBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
-    marginBottom: 6,
+  headerSub: {
+    fontSize: 12,
+    color: "#aaa",
+    marginTop: 2,
   },
-  heroBtnText: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-    fontWeight: "500",
+  headerRight: { alignItems: "center", gap: 8 },
+  headerLogo: { width: 52, height: 52, borderRadius: 12 },
+  logoutBtn: {
+    backgroundColor: "#fff",
+    borderRadius: 10,
+    padding: 8,
+    shadowColor: "#000",
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
 
   // Stats
   statsGrid: {
+    flexDirection: "row",
     paddingHorizontal: 16,
-    gap: 10,
-    marginBottom: 20,
+    gap: 6,
+    marginBottom: 16,
   },
   statCard: {
-    borderRadius: 14,
-    paddingVertical: 18,
-    paddingHorizontal: 20,
+    flex: 1,
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
     alignItems: "center",
   },
   statNumber: {
-    fontSize: 36,
+    fontSize: 18,
     fontWeight: "700",
     color: COLORS.textLight,
-    lineHeight: 42,
+    lineHeight: 22,
   },
   statLabel: {
-    fontSize: 14,
+    fontSize: 9,
     color: COLORS.textLight,
     fontWeight: "500",
     marginTop: 2,
     opacity: 0.9,
+    textAlign: "center",
   },
 
   // Tabla semanal
