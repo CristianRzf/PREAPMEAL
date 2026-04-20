@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { Stack } from "expo-router";
 import { getAuth } from "firebase/auth";
 import {
@@ -6,6 +7,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   getFirestore,
   orderBy,
@@ -20,6 +22,7 @@ import {
   FlatList,
   Image,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -28,6 +31,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+// ─── Cloudinary ───────────────────────────────────────────────────────────────
+const CLOUDINARY_CLOUD_NAME = "dbbsgfsr6";
+const CLOUDINARY_UPLOAD_PRESET = "mealprep_uploads";
+const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
 const COLORS = {
@@ -67,6 +75,39 @@ const MEAL_LABELS: Record<string, string> = {
   desayuno: "Desayuno", almuerzo: "Almuerzo", cena: "Cena", snack: "Snack", todas: "Todas",
 };
 
+// ─── Subir imagen a Cloudinary ────────────────────────────────────────────────
+async function subirImagenCloudinary(uri: string): Promise<string> {
+  const formData = new FormData();
+
+  if (Platform.OS === "web") {
+    // En web: convertir base64/blob
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    formData.append("file", blob);
+  } else {
+    // En nativo: usar uri directamente
+    const filename = uri.split("/").pop() || "photo.jpg";
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : "image/jpeg";
+    formData.append("file", { uri, name: filename, type } as any);
+  }
+
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+  const response = await fetch(CLOUDINARY_URL, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const error = await response.text();
+    throw new Error(`Cloudinary error: ${error}`);
+  }
+
+  const data = await response.json();
+  return data.secure_url;
+}
+
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export default function RecetasScreen() {
   const auth = getAuth();
@@ -89,13 +130,15 @@ export default function RecetasScreen() {
   // Modal subir
   const [modalSubir, setModalSubir] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingImg, setUploadingImg] = useState(false);
   const [formTitulo, setFormTitulo] = useState("");
   const [formDesc, setFormDesc] = useState("");
   const [formCals, setFormCals] = useState("");
   const [formTiempo, setFormTiempo] = useState("");
   const [formDif, setFormDif] = useState<Dificultad>("fácil");
   const [formMeal, setFormMeal] = useState<MealType>("almuerzo");
-  const [formImagenUrl, setFormImagenUrl] = useState("");
+  const [formImagenUri, setFormImagenUri] = useState<string | null>(null);
+  const [formImagenUrl, setFormImagenUrl] = useState<string | null>(null);
 
   // Modal detalle
   const [recetaDetalle, setRecetaDetalle] = useState<RecetaUsuario | null>(null);
@@ -103,7 +146,6 @@ export default function RecetasScreen() {
   useEffect(() => { cargarExplorar(); }, []);
   useEffect(() => { if (activeTab === "Mis recetas") cargarMisRecetas(); }, [activeTab]);
 
-  // Lee de la colección global → todos ven las recetas de todos
   const cargarExplorar = async () => {
     setLoadingExplorar(true);
     try {
@@ -114,7 +156,6 @@ export default function RecetasScreen() {
     finally { setLoadingExplorar(false); }
   };
 
-  // Lee solo las recetas del usuario actual
   const cargarMisRecetas = async () => {
     if (!userId) return;
     setLoadingMisRecetas(true);
@@ -129,27 +170,88 @@ export default function RecetasScreen() {
   const resetForm = () => {
     setFormTitulo(""); setFormDesc(""); setFormCals("");
     setFormTiempo(""); setFormDif("fácil"); setFormMeal("almuerzo");
-    setFormImagenUrl("");
+    setFormImagenUri(null); setFormImagenUrl(null);
   };
 
-  // Guarda en colección global Y en subcolección del usuario
+  // Seleccionar imagen de galería o cámara
+  const seleccionarImagen = () => {
+    Alert.alert("Agregar foto", "¿Cómo quieres agregar la imagen?", [
+      {
+        text: "Galería",
+        onPress: () => abrirGaleria(),
+      },
+      {
+        text: "Cámara",
+        onPress: () => abrirCamara(),
+      },
+      { text: "Cancelar", style: "cancel" },
+    ]);
+  };
+
+  const abrirGaleria = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permiso requerido", "Necesitamos acceso a tu galería.");
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.7,
+    });
+    if (!result.canceled) {
+      await procesarImagen(result.assets[0].uri);
+    }
+  };
+
+  const abrirCamara = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") {
+      Alert.alert("Permiso requerido", "Necesitamos acceso a tu cámara.");
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [4, 3],
+      quality: 0.7,
+    });
+    if (!result.canceled) {
+      await procesarImagen(result.assets[0].uri);
+    }
+  };
+
+  const procesarImagen = async (uri: string) => {
+    setFormImagenUri(uri);
+    setUploadingImg(true);
+    try {
+      const url = await subirImagenCloudinary(uri);
+      setFormImagenUrl(url);
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Error", "No se pudo subir la imagen. Intenta de nuevo.");
+      setFormImagenUri(null);
+    } finally {
+      setUploadingImg(false);
+    }
+  };
+
   const publicarReceta = async () => {
     if (!userId) return;
     if (!formTitulo.trim()) { Alert.alert("Error", "El título es obligatorio."); return; }
-    if (!formImagenUrl.trim()) { Alert.alert("Error", "Agrega una URL de imagen."); return; }
+    if (!formImagenUrl) { Alert.alert("Error", "Agrega una foto a tu receta."); return; }
+    if (uploadingImg) { Alert.alert("Espera", "La imagen aún se está subiendo."); return; }
 
     setSaving(true);
     try {
-      // Obtener username del usuario
-      const { getDoc, doc: firestoreDoc } = await import("firebase/firestore");
-      const userSnap = await getDoc(firestoreDoc(db, "users", userId));
+      const userSnap = await getDoc(doc(db, "users", userId));
       const username = userSnap.exists() ? (userSnap.data().username || "usuario") : "usuario";
 
       const recetaData = {
         tipo: "custom",
         titulo: formTitulo.trim(),
         descripcion: formDesc.trim(),
-        imagen: formImagenUrl.trim(),
+        imagen: formImagenUrl,
         calorias: Number(formCals) || 0,
         tiempo: Number(formTiempo) || 0,
         dificultad: formDif,
@@ -159,13 +261,10 @@ export default function RecetasScreen() {
         creadoEn: serverTimestamp(),
       };
 
-      // 1. Colección global (todos pueden ver)
       await addDoc(collection(db, "recipes"), recetaData);
-
-      // 2. Subcolección del usuario (para "Mis recetas")
       await addDoc(collection(db, "users", userId, "recipes"), recetaData);
 
-      Alert.alert("✓ Publicada", "Tu receta fue publicada y ya es visible para todos.");
+      Alert.alert("✓ Publicada", "Tu receta ya es visible para todos.");
       resetForm();
       setModalSubir(false);
       cargarExplorar();
@@ -176,7 +275,6 @@ export default function RecetasScreen() {
     } finally { setSaving(false); }
   };
 
-  // Elimina de ambas colecciones
   const eliminarReceta = (receta: RecetaUsuario) => {
     Alert.alert("Eliminar", "¿Eliminar esta receta? Se eliminará para todos.", [
       { text: "Cancelar", style: "cancel" },
@@ -185,17 +283,13 @@ export default function RecetasScreen() {
         onPress: async () => {
           if (!userId) return;
           try {
-            // Eliminar de subcolección usuario
             await deleteDoc(doc(db, "users", userId, "recipes", receta.id));
-
-            // Eliminar de colección global buscando por userId + titulo
             const q = query(collection(db, "recipes"), orderBy("creadoEn", "desc"));
             const snap = await getDocs(q);
             const globalDoc = snap.docs.find(
               (d) => d.data().userId === userId && d.data().titulo === receta.titulo
             );
             if (globalDoc) await deleteDoc(doc(db, "recipes", globalDoc.id));
-
             setMisRecetas((p) => p.filter((r) => r.id !== receta.id));
             setRecetasExplorar((p) => p.filter((r) => r.userId !== userId || r.titulo !== receta.titulo));
           } catch (e) {
@@ -206,7 +300,6 @@ export default function RecetasScreen() {
     ]);
   };
 
-  // Filtros
   const recetasFiltradas = recetasExplorar.filter((r) => {
     const matchBusqueda = r.titulo.toLowerCase().includes(busqueda.toLowerCase());
     const matchTipo = filtroTipo === "todas" || r.mealType === filtroTipo;
@@ -214,7 +307,6 @@ export default function RecetasScreen() {
     return matchBusqueda && matchTipo && matchDif;
   });
 
-  // ─── Render ──────────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe}>
       <Stack.Screen options={{ headerShown: false }} />
@@ -251,13 +343,7 @@ export default function RecetasScreen() {
         <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
           <View style={styles.searchRow}>
             <Ionicons name="search-outline" size={18} color={COLORS.textMuted} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Buscar receta..."
-              placeholderTextColor={COLORS.textMuted}
-              value={busqueda}
-              onChangeText={setBusqueda}
-            />
+            <TextInput style={styles.searchInput} placeholder="Buscar receta..." placeholderTextColor={COLORS.textMuted} value={busqueda} onChangeText={setBusqueda} />
             {busqueda.length > 0 && (
               <TouchableOpacity onPress={() => setBusqueda("")}>
                 <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
@@ -267,25 +353,15 @@ export default function RecetasScreen() {
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
             {(["todas", "desayuno", "almuerzo", "cena", "snack"] as const).map((f) => (
-              <TouchableOpacity
-                key={f}
-                style={[styles.filterChip, filtroTipo === f && styles.filterChipActive]}
-                onPress={() => setFiltroTipo(f)}
-              >
-                <Text style={[styles.filterChipText, filtroTipo === f && styles.filterChipTextActive]}>
-                  {MEAL_LABELS[f]}
-                </Text>
+              <TouchableOpacity key={f} style={[styles.filterChip, filtroTipo === f && styles.filterChipActive]} onPress={() => setFiltroTipo(f)}>
+                <Text style={[styles.filterChipText, filtroTipo === f && styles.filterChipTextActive]}>{MEAL_LABELS[f]}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[styles.filterScroll, { marginTop: -4 }]}>
             {(["todas", "fácil", "intermedio", "difícil"] as const).map((f) => (
-              <TouchableOpacity
-                key={f}
-                style={[styles.filterChip, filtroDif === f && styles.filterChipActive]}
-                onPress={() => setFiltroDif(f)}
-              >
+              <TouchableOpacity key={f} style={[styles.filterChip, filtroDif === f && styles.filterChipActive]} onPress={() => setFiltroDif(f)}>
                 <Text style={[styles.filterChipText, filtroDif === f && styles.filterChipTextActive]}>
                   {f === "todas" ? "Cualquier nivel" : f.charAt(0).toUpperCase() + f.slice(1)}
                 </Text>
@@ -294,21 +370,15 @@ export default function RecetasScreen() {
           </ScrollView>
 
           {loadingExplorar ? (
-            <View style={styles.centered}>
-              <ActivityIndicator size="large" color={COLORS.card} />
-            </View>
+            <View style={styles.centered}><ActivityIndicator size="large" color={COLORS.card} /></View>
           ) : recetasFiltradas.length === 0 ? (
             <View style={styles.centered}>
               <Ionicons name="restaurant-outline" size={56} color={COLORS.card} style={{ opacity: 0.4 }} />
               <Text style={styles.emptyTitle}>
-                {busqueda || filtroTipo !== "todas" || filtroDif !== "todas"
-                  ? "No hay recetas que coincidan"
-                  : "Aún no hay recetas"}
+                {busqueda || filtroTipo !== "todas" || filtroDif !== "todas" ? "No hay recetas que coincidan" : "Aún no hay recetas"}
               </Text>
               <Text style={styles.emptySubtitle}>
-                {busqueda || filtroTipo !== "todas" || filtroDif !== "todas"
-                  ? "Intenta con otros filtros"
-                  : "¡Sé el primero en publicar una receta!"}
+                {busqueda || filtroTipo !== "todas" || filtroDif !== "todas" ? "Intenta con otros filtros" : "¡Sé el primero en publicar una receta!"}
               </Text>
               <TouchableOpacity style={styles.emptyBtn} onPress={() => { resetForm(); setModalSubir(true); }}>
                 <Text style={styles.emptyBtnText}>+ Publicar receta</Text>
@@ -336,9 +406,7 @@ export default function RecetasScreen() {
       {activeTab === "Mis recetas" && (
         <View style={{ flex: 1 }}>
           {loadingMisRecetas ? (
-            <View style={styles.centered}>
-              <ActivityIndicator size="large" color={COLORS.card} />
-            </View>
+            <View style={styles.centered}><ActivityIndicator size="large" color={COLORS.card} /></View>
           ) : misRecetas.length === 0 ? (
             <View style={styles.centered}>
               <Ionicons name="restaurant-outline" size={56} color={COLORS.card} style={{ opacity: 0.4 }} />
@@ -403,13 +471,10 @@ export default function RecetasScreen() {
                   <Ionicons name="chevron-back" size={24} color="#fff" />
                 </TouchableOpacity>
               </View>
-
               <View style={styles.detalleContent}>
                 <Text style={styles.detalleNombre}>{recetaDetalle.titulo}</Text>
                 <Text style={styles.detalleAutor}>por @{recetaDetalle.username}</Text>
-                {recetaDetalle.descripcion ? (
-                  <Text style={styles.detalleDesc}>{recetaDetalle.descripcion}</Text>
-                ) : null}
+                {recetaDetalle.descripcion ? <Text style={styles.detalleDesc}>{recetaDetalle.descripcion}</Text> : null}
                 <View style={styles.detalleMeta}>
                   <View style={styles.detalleMetaItem}>
                     <Ionicons name="time-outline" size={16} color={COLORS.card} />
@@ -447,17 +512,40 @@ export default function RecetasScreen() {
           </View>
 
           <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
+
+            {/* Foto */}
+            <TouchableOpacity style={styles.fotoBtn} onPress={seleccionarImagen} disabled={uploadingImg}>
+              {formImagenUri ? (
+                <View style={{ width: "100%", height: "100%" }}>
+                  <Image source={{ uri: formImagenUri }} style={styles.fotoPrev} resizeMode="cover" />
+                  {uploadingImg && (
+                    <View style={styles.uploadingOverlay}>
+                      <ActivityIndicator size="large" color="#fff" />
+                      <Text style={styles.uploadingText}>Subiendo imagen...</Text>
+                    </View>
+                  )}
+                </View>
+              ) : (
+                <View style={styles.fotoPlaceholder}>
+                  <Ionicons name="camera-outline" size={36} color={COLORS.card} />
+                  <Text style={styles.fotoPlaceholderText}>Toca para agregar foto</Text>
+                  <Text style={styles.fotoPlaceholderSub}>Galería o cámara</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {formImagenUrl && !uploadingImg && (
+              <View style={styles.imgSuccessRow}>
+                <Ionicons name="checkmark-circle" size={16} color="#4CAF50" />
+                <Text style={styles.imgSuccessText}>Imagen subida correctamente</Text>
+              </View>
+            )}
+
             <Text style={styles.fieldLabel}>Título *</Text>
             <TextInput style={styles.input} value={formTitulo} onChangeText={setFormTitulo} placeholder="Nombre de tu receta" placeholderTextColor={COLORS.textMuted} />
 
             <Text style={styles.fieldLabel}>Descripción</Text>
             <TextInput style={[styles.input, { height: 80, textAlignVertical: "top" }]} value={formDesc} onChangeText={setFormDesc} placeholder="Describe brevemente tu receta..." placeholderTextColor={COLORS.textMuted} multiline />
-
-            <Text style={styles.fieldLabel}>URL de imagen *</Text>
-            <TextInput style={styles.input} value={formImagenUrl} onChangeText={setFormImagenUrl} placeholder="https://..." placeholderTextColor={COLORS.textMuted} autoCapitalize="none" keyboardType="url" />
-            {formImagenUrl.length > 10 && (
-              <Image source={{ uri: formImagenUrl }} style={styles.imagenPreview} resizeMode="cover" />
-            )}
 
             <View style={styles.row2}>
               <View style={{ flex: 1 }}>
@@ -488,7 +576,11 @@ export default function RecetasScreen() {
               ))}
             </View>
 
-            <TouchableOpacity style={[styles.publishBtn, saving && { opacity: 0.7 }]} onPress={publicarReceta} disabled={saving}>
+            <TouchableOpacity
+              style={[styles.publishBtn, (saving || uploadingImg) && { opacity: 0.7 }]}
+              onPress={publicarReceta}
+              disabled={saving || uploadingImg}
+            >
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.publishBtnText}>Publicar receta</Text>}
             </TouchableOpacity>
 
@@ -604,6 +696,16 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 17, fontWeight: "700", color: COLORS.text },
   modalBody: { padding: 20 },
 
+  fotoBtn: { width: "100%", height: 180, borderRadius: 16, overflow: "hidden", marginBottom: 12 },
+  fotoPrev: { width: "100%", height: "100%" },
+  fotoPlaceholder: { flex: 1, backgroundColor: "#F0EAE7", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 16, borderWidth: 2, borderColor: COLORS.border, borderStyle: "dashed" },
+  fotoPlaceholderText: { fontSize: 14, color: COLORS.textMuted, fontWeight: "600" },
+  fotoPlaceholderSub: { fontSize: 11, color: "#aaa" },
+  uploadingOverlay: { position: "absolute", width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", gap: 8 },
+  uploadingText: { color: "#fff", fontSize: 13, fontWeight: "600" },
+  imgSuccessRow: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 12 },
+  imgSuccessText: { fontSize: 12, color: "#4CAF50", fontWeight: "600" },
+
   fieldLabel: { fontSize: 13, fontWeight: "700", color: COLORS.text, marginBottom: 6 },
   input: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, color: COLORS.text, marginBottom: 14 },
   row2: { flexDirection: "row", gap: 12 },
@@ -612,8 +714,6 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: COLORS.card, borderColor: COLORS.card },
   chipText: { fontSize: 13, color: COLORS.textMuted, fontWeight: "500" },
   chipTextActive: { color: "#fff", fontWeight: "700" },
-
-  imagenPreview: { width: "100%", height: 160, borderRadius: 12, marginBottom: 14 },
 
   publishBtn: { backgroundColor: COLORS.card, paddingVertical: 15, borderRadius: 14, alignItems: "center", marginTop: 8 },
   publishBtnText: { color: "#fff", fontWeight: "800", fontSize: 15 },

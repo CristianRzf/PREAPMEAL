@@ -1,7 +1,16 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { getAuth, signOut } from "firebase/auth";
-import { doc, getDoc, getFirestore, setDoc } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  getFirestore,
+  orderBy,
+  query,
+  setDoc,
+} from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
@@ -34,11 +43,13 @@ const COLORS = {
 
 const { width } = Dimensions.get("window");
 const MOBILE_WIDTH = Platform.OS === "web" ? 390 : width;
+const GRID_SIZE = (MOBILE_WIDTH - 44) / 3;
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 type Sexo = "Masculino" | "Femenino" | "";
 type Actividad = "Sedentario" | "Ligero" | "Moderado" | "Activo" | "Muy activo" | "";
 type Objetivo = "Mantener peso" | "Perder peso" | "Ganar peso" | "Ganar masa muscular" | "";
+type TabType = "Recetas" | "Guardadas" | "Me gusta";
 
 interface PerfilData {
   displayName: string;
@@ -50,6 +61,15 @@ interface PerfilData {
   actividad: Actividad;
   objetivo: Objetivo;
   alergias: Record<string, boolean>;
+}
+
+interface RecetaItem {
+  id: string;
+  titulo: string;
+  imagen: string;
+  calorias: number;
+  tiempo: number;
+  dificultad: string;
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -99,8 +119,6 @@ const chipStyles = StyleSheet.create({
   chipTextActive: { color: COLORS.card, fontWeight: "700" },
 });
 
-type TabType = "Recetas" | "Guardadas" | "Me gusta";
-
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export default function Perfil() {
   const auth = getAuth();
@@ -113,12 +131,20 @@ export default function Perfil() {
   const [modalEditar, setModalEditar] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Recetas del usuario
+  const [misRecetas, setMisRecetas] = useState<RecetaItem[]>([]);
+  const [loadingRecetas, setLoadingRecetas] = useState(false);
+
   const [form, setForm] = useState<PerfilData>({
     displayName: "", username: "", edad: "", peso: "",
     altura: "", sexo: "", actividad: "", objetivo: "", alergias: {},
   });
 
   useEffect(() => { fetchUser(); }, []);
+
+  useEffect(() => {
+    if (activeTab === "Recetas" && user) cargarMisRecetas();
+  }, [activeTab]);
 
   const fetchUser = async () => {
     if (!user) { setLoading(false); return; }
@@ -140,7 +166,24 @@ export default function Perfil() {
         });
       }
     } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+    finally {
+      setLoading(false);
+      cargarMisRecetas();
+    }
+  };
+
+  const cargarMisRecetas = async () => {
+    if (!user) return;
+    setLoadingRecetas(true);
+    try {
+      const q = query(
+        collection(db, "users", user.uid, "recipes"),
+        orderBy("creadoEn", "desc")
+      );
+      const snap = await getDocs(q);
+      setMisRecetas(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecetaItem)));
+    } catch (e) { console.error(e); }
+    finally { setLoadingRecetas(false); }
   };
 
   const logout = async () => {
@@ -220,13 +263,11 @@ export default function Perfil() {
               <Ionicons name="person" size={44} color="#bbb" />
             </View>
           </View>
-
           {usernameIsSet
             ? <Text style={styles.username}>{username}</Text>
             : <Text style={styles.usernameEmpty}>Sin usuario · Edita tu perfil</Text>
           }
           <Text style={styles.displayName}>{displayName}</Text>
-
           {userData?.ciudad && (
             <View style={styles.locationRow}>
               <Ionicons name="location-outline" size={13} color={COLORS.textMuted} />
@@ -235,10 +276,10 @@ export default function Perfil() {
           )}
         </View>
 
-        {/* Stats */}
+        {/* Stats — recetas reales */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statNumber}>{misRecetas.length}</Text>
             <Text style={styles.statLabel}>Recetas</Text>
           </View>
           <View style={styles.statDivider} />
@@ -275,7 +316,7 @@ export default function Perfil() {
           </View>
         )}
 
-        {/* TDEE card si tiene datos */}
+        {/* TDEE */}
         {userData?.tdee && (
           <View style={styles.tdeeCard}>
             <View style={styles.tdeeHeader}>
@@ -335,20 +376,58 @@ export default function Perfil() {
           ))}
         </View>
 
-        {/* Grid vacío */}
-        <View style={styles.emptyGrid}>
-          <Ionicons name="restaurant-outline" size={48} color={COLORS.card} style={{ opacity: 0.4 }} />
-          <Text style={styles.emptyText}>
-            {activeTab === "Recetas" && "Aún no has publicado recetas"}
-            {activeTab === "Guardadas" && "No tienes recetas guardadas"}
-            {activeTab === "Me gusta" && "No has dado me gusta a ninguna receta"}
-          </Text>
-          {activeTab === "Recetas" && (
-            <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push("/(tabs)/recetas")}>
-              <Text style={styles.emptyBtnText}>Explorar recetas</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        {/* ── TAB RECETAS ── */}
+        {activeTab === "Recetas" && (
+          loadingRecetas ? (
+            <View style={styles.emptyGrid}>
+              <ActivityIndicator size="large" color={COLORS.card} />
+            </View>
+          ) : misRecetas.length === 0 ? (
+            <View style={styles.emptyGrid}>
+              <Ionicons name="restaurant-outline" size={48} color={COLORS.card} style={{ opacity: 0.4 }} />
+              <Text style={styles.emptyText}>Aún no has publicado recetas</Text>
+              <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push("/(tabs)/recetas")}>
+                <Text style={styles.emptyBtnText}>+ Publicar receta</Text>
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.grid}>
+              {misRecetas.map((receta) => (
+                <TouchableOpacity
+                  key={receta.id}
+                  style={styles.gridItem}
+                  onPress={() => router.push("/(tabs)/recetas")}
+                >
+                  {receta.imagen ? (
+                    <Image source={{ uri: receta.imagen }} style={styles.gridImage} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.gridImage, styles.gridImagePlaceholder]}>
+                      <Ionicons name="restaurant-outline" size={24} color={COLORS.card} />
+                    </View>
+                  )}
+                  <View style={styles.gridOverlay} />
+                  <Text style={styles.gridTitle} numberOfLines={2}>{receta.titulo}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )
+        )}
+
+        {/* ── TAB GUARDADAS ── */}
+        {activeTab === "Guardadas" && (
+          <View style={styles.emptyGrid}>
+            <Ionicons name="bookmark-outline" size={48} color={COLORS.card} style={{ opacity: 0.4 }} />
+            <Text style={styles.emptyText}>No tienes recetas guardadas</Text>
+          </View>
+        )}
+
+        {/* ── TAB ME GUSTA ── */}
+        {activeTab === "Me gusta" && (
+          <View style={styles.emptyGrid}>
+            <Ionicons name="heart-outline" size={48} color={COLORS.card} style={{ opacity: 0.4 }} />
+            <Text style={styles.emptyText}>No has dado me gusta a ninguna receta</Text>
+          </View>
+        )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -356,7 +435,6 @@ export default function Perfil() {
       {/* ─── Modal Editar Perfil ──────────────────────────────────────────── */}
       <Modal visible={modalEditar} animationType="slide" statusBarTranslucent>
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
-          {/* Header modal */}
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setModalEditar(false)}>
               <Ionicons name="chevron-down" size={26} color={COLORS.text} />
@@ -371,8 +449,6 @@ export default function Perfil() {
           </View>
 
           <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
-
-            {/* Avatar */}
             <View style={styles.modalAvatarSection}>
               <View style={styles.modalAvatar}>
                 <Ionicons name="person" size={44} color="#bbb" />
@@ -380,33 +456,16 @@ export default function Perfil() {
               <Text style={styles.changePhoto}>Cambiar foto</Text>
             </View>
 
-            {/* Nombre */}
             <Text style={styles.fieldLabel}>Nombre completo</Text>
-            <TextInput
-              style={styles.input}
-              value={form.displayName}
-              onChangeText={(v) => setForm({ ...form, displayName: v })}
-              placeholder="Tu nombre completo"
-              placeholderTextColor={COLORS.textMuted}
-            />
+            <TextInput style={styles.input} value={form.displayName} onChangeText={(v) => setForm({ ...form, displayName: v })} placeholder="Tu nombre completo" placeholderTextColor={COLORS.textMuted} />
 
-            {/* Username */}
             <Text style={styles.fieldLabel}>Nombre de usuario</Text>
             <View style={styles.usernameInputRow}>
               <View style={styles.atSign}><Text style={styles.atText}>@</Text></View>
-              <TextInput
-                style={styles.usernameInput}
-                value={form.username}
-                onChangeText={(v) => setForm({ ...form, username: v.toLowerCase().replace(/\s/g, "") })}
-                placeholder="tunombredeusuario"
-                placeholderTextColor={COLORS.textMuted}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              <TextInput style={styles.usernameInput} value={form.username} onChangeText={(v) => setForm({ ...form, username: v.toLowerCase().replace(/\s/g, "") })} placeholder="tunombredeusuario" placeholderTextColor={COLORS.textMuted} autoCapitalize="none" autoCorrect={false} />
             </View>
             <Text style={styles.fieldHint}>Solo letras, números y guiones bajos.</Text>
 
-            {/* Edad + Peso */}
             <View style={styles.row2}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.fieldLabel}>Edad</Text>
@@ -418,7 +477,6 @@ export default function Perfil() {
               </View>
             </View>
 
-            {/* Sexo + Altura */}
             <View style={styles.row2}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.fieldLabel}>Sexo</Text>
@@ -430,15 +488,12 @@ export default function Perfil() {
               </View>
             </View>
 
-            {/* Actividad */}
             <Text style={styles.fieldLabel}>Nivel de actividad física</Text>
             <SelectorChip options={["Sedentario", "Ligero", "Moderado", "Activo", "Muy activo"]} value={form.actividad} onChange={(v: Actividad) => setForm({ ...form, actividad: v })} />
 
-            {/* Objetivo */}
             <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Objetivo Nutricional</Text>
             <SelectorChip options={["Mantener peso", "Perder peso", "Ganar peso", "Ganar masa muscular"]} value={form.objetivo} onChange={(v: Objetivo) => setForm({ ...form, objetivo: v })} />
 
-            {/* TDEE */}
             {calculo && (
               <View style={styles.calcCard}>
                 <View style={styles.calcHeader}>
@@ -463,7 +518,6 @@ export default function Perfil() {
               </View>
             )}
 
-            {/* Alergias */}
             <Text style={[styles.fieldLabel, { marginTop: 16 }]}>Alergias e intolerancias</Text>
             <Text style={styles.fieldHint}>Selecciona las que apliquen</Text>
             <View style={styles.alergiasGridForm}>
@@ -480,16 +534,8 @@ export default function Perfil() {
               ))}
             </View>
 
-            {/* Botón guardar */}
-            <TouchableOpacity
-              style={[styles.saveButton, saving && { opacity: 0.7 }]}
-              onPress={guardar}
-              disabled={saving}
-            >
-              {saving
-                ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.saveButtonText}>Guardar cambios</Text>
-              }
+            <TouchableOpacity style={[styles.saveButton, saving && { opacity: 0.7 }]} onPress={guardar} disabled={saving}>
+              {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Guardar cambios</Text>}
             </TouchableOpacity>
 
             <View style={{ height: 40 }} />
@@ -557,6 +603,14 @@ const styles = StyleSheet.create({
   tabText: { fontSize: 13, color: "#aaa", fontWeight: "600" },
   tabTextActive: { color: COLORS.text },
   tabUnderline: { position: "absolute", bottom: 0, width: "50%", height: 2, backgroundColor: COLORS.card, borderRadius: 2 },
+
+  // Grid recetas
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 2, marginTop: 8, marginHorizontal: -20 },
+  gridItem: { width: GRID_SIZE, height: GRID_SIZE, position: "relative" },
+  gridImage: { width: "100%", height: "100%" },
+  gridImagePlaceholder: { backgroundColor: "#F0EAE7", justifyContent: "center", alignItems: "center" },
+  gridOverlay: { position: "absolute", bottom: 0, left: 0, right: 0, height: "40%", backgroundColor: "rgba(0,0,0,0.25)" },
+  gridTitle: { position: "absolute", bottom: 4, left: 4, right: 4, fontSize: 9, color: "#fff", fontWeight: "600" },
 
   emptyGrid: { alignItems: "center", paddingVertical: 40, gap: 10 },
   emptyText: { fontSize: 13, color: COLORS.textMuted, textAlign: "center" },
