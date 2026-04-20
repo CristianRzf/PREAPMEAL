@@ -27,7 +27,7 @@ type Item = {
   id: string;
   name: string;
   quantity: string;
-  location: "Nevera" | "Despensa";
+  location: "Nevera" | "Despensa" | "Congelador";
   expirationDays: number;
   expirationDate?: string;
   notificationIds?: string[];
@@ -35,7 +35,7 @@ type Item = {
 
 export default function Inventario() {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"todos" | "Nevera" | "Despensa">(
+  const [filter, setFilter] = useState<"todos" | "Nevera" | "Despensa" | "Congelador">(
     "todos",
   );
   const [modalVisible, setModalVisible] = useState(false);
@@ -47,7 +47,7 @@ export default function Inventario() {
 
   const [newQtyNumber, setNewQtyNumber] = useState("");
   const [newUnit, setNewUnit] = useState("");
-  const [newLocation, setNewLocation] = useState<"Nevera" | "Despensa">(
+  const [newLocation, setNewLocation] = useState<"Nevera" | "Despensa" | "Congelador">(
     "Nevera",
   );
   const [newDays, setNewDays] = useState("");
@@ -259,7 +259,10 @@ export default function Inventario() {
         <Text style={styles.itemName}>{item.name}</Text>
         <Text style={styles.itemQty}>{item.quantity}</Text>
         <Text style={styles.location}>
-          {item.location === "Nevera" ? "Nevera" : "Despensa"}
+          {item.location === "Nevera" 
+          ? "Nevera" 
+          : item.location === "Despensa" 
+          ? "Despensa" : "Congelador"}
         </Text>
       </View>
 
@@ -363,7 +366,7 @@ export default function Inventario() {
 
         {/* FILTROS */}
         <View style={styles.filters}>
-          {["todos", "Nevera", "Despensa"].map((f) => (
+          {["todos", "Nevera", "Despensa", "Congelador"].map((f) => (
             <TouchableOpacity
               key={f}
               style={[styles.filterBtn, filter === f && styles.activeFilter]}
@@ -449,6 +452,17 @@ export default function Inventario() {
                 >
                   <Text>Despensa</Text>
                 </TouchableOpacity>
+
+                <TouchableOpacity
+                style={[
+                  styles.locationBtn,
+                  newLocation === "Congelador" && styles.locationActive,
+                ]}
+                onPress={() => setNewLocation("Congelador")}
+                >
+                  <Text> Congelador </Text>
+                </TouchableOpacity>
+              
               </View>
 
               <Text style={styles.label}>Días para vencimiento</Text>
