@@ -93,8 +93,9 @@ const userCredential = await signInWithEmailAndPassword(auth, email, password);
       </TouchableOpacity>
 
       {/* Forgot password */}
-      <TouchableOpacity onPress={() => router.push("/recuperar" as any)}>         <Text style={styles.forgot}>¿Olvidaste tu contraseña?</Text>
-       </TouchableOpacity>
+      <TouchableOpacity onPress={() => router.push("/recuperar" as any)}>         
+        <Text style={styles.forgot}>¿Olvidaste tu contraseña?</Text>
+      </TouchableOpacity>
 
       {/* Separador */}
       <View style={styles.separatorContainer}>
