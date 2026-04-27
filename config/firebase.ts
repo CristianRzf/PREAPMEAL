@@ -1,11 +1,12 @@
 // Import the functions you need from the SDKs you need
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps, getApp } from "firebase/app";
 import { enableNetwork, getFirestore } from "firebase/firestore";
-import { getApps, getApp } from "firebase/app";
+import { initializeAuth, getAuth, getReactNativePersistence } from "firebase/auth";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Platform } from "react-native";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
-import {initializeAuth, getReactNativePersistence, getAuth } from "firebase/auth";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+
 
 // Your web app's Firebase configuration
 // For Firebase JS SDK v7.20.0 and later, measurementId is optional
@@ -23,21 +24,21 @@ measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
 //const app = initializeApp(firebaseConfig);
 //const analytics = getAnalytics(app);
 //auth
-const app = getApps().length === 0
-? initializeApp(firebaseConfig)
-: getApp();
+const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
-export const auth = initializeAuth(app, {
-    persistence: getReactNativePersistence(AsyncStorage),
-});
+
+export const auth = Platform.OS === "web"
+  ? getAuth(app)
+  : initializeAuth(app, {
+      persistence: getReactNativePersistence(AsyncStorage),
+    });
 export const db = getFirestore(app);
 
 enableNetwork(db).catch((error) => {
   console.error("Error enabling Firestore network:", error);
 });
 
-console.log("API KEY:", process.env.EXPO_PUBLIC_FIREBASE_API_KEY);
-console.log("PROJECT ID:", process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID);
+
 //db
 //export const firestore = getFirestore(app); 
 //const app = initializeApp(firebaseConfig);

@@ -6,7 +6,10 @@ import {
   deleteDoc,
   doc,
   getDoc,
+  getDocs,
   getFirestore,
+  orderBy,
+  query,
   serverTimestamp,
   setDoc,
 } from "firebase/firestore";
@@ -66,152 +69,6 @@ type PlanSemana = {
   };
 };
 
-// ─── Recetas demo ─────────────────────────────────────────────────────────────
-
-const RECETAS_DEMO: Receta[] = [
-  {
-    id: "r1",
-    nombre: "Avena con frutas",
-    imagen:
-      "https://images.unsplash.com/photo-1517673400267-0251440c45dc?w=200",
-    calorias: 320,
-    proteinas: 12,
-    carbohidratos: 55,
-    grasas: 6,
-    tiempo: 10,
-    dificultad: "fácil",
-    tipo: ["desayuno"],
-    ingredientes: [
-      { nombre: "Avena", cantidad: 80, unidad: "g", precio: 800 },
-      { nombre: "Leche", cantidad: 200, unidad: "ml", precio: 1200 },
-      { nombre: "Banano", cantidad: 1, unidad: "unidad", precio: 500 },
-    ],
-  },
-  {
-    id: "r2",
-    nombre: "Huevos revueltos",
-    imagen:
-      "https://images.unsplash.com/photo-1510693206972-df098062cb71?w=200",
-    calorias: 280,
-    proteinas: 18,
-    carbohidratos: 5,
-    grasas: 20,
-    tiempo: 15,
-    dificultad: "fácil",
-    tipo: ["desayuno"],
-    ingredientes: [
-      { nombre: "Huevos", cantidad: 3, unidad: "unidad", precio: 1500 },
-      { nombre: "Mantequilla", cantidad: 10, unidad: "g", precio: 400 },
-    ],
-  },
-  {
-    id: "r3",
-    nombre: "Arroz con pollo",
-    imagen:
-      "https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?w=200",
-    calorias: 520,
-    proteinas: 38,
-    carbohidratos: 62,
-    grasas: 10,
-    tiempo: 40,
-    dificultad: "intermedio",
-    tipo: ["almuerzo"],
-    ingredientes: [
-      { nombre: "Arroz", cantidad: 150, unidad: "g", precio: 1000 },
-      { nombre: "Pechuga de pollo", cantidad: 200, unidad: "g", precio: 4000 },
-      { nombre: "Zanahoria", cantidad: 1, unidad: "unidad", precio: 600 },
-    ],
-  },
-  {
-    id: "r4",
-    nombre: "Ensalada César",
-    imagen:
-      "https://images.unsplash.com/photo-1512621776951-a57141f2eefd?w=200",
-    calorias: 310,
-    proteinas: 14,
-    carbohidratos: 18,
-    grasas: 22,
-    tiempo: 15,
-    dificultad: "fácil",
-    tipo: ["almuerzo", "cena"],
-    ingredientes: [
-      { nombre: "Lechuga romana", cantidad: 150, unidad: "g", precio: 2000 },
-      { nombre: "Pollo", cantidad: 100, unidad: "g", precio: 2500 },
-      { nombre: "Aderezo César", cantidad: 30, unidad: "ml", precio: 1500 },
-    ],
-  },
-  {
-    id: "r5",
-    nombre: "Salmón al horno",
-    imagen:
-      "https://images.unsplash.com/photo-1467003909585-2f8a72700288?w=200",
-    calorias: 420,
-    proteinas: 42,
-    carbohidratos: 8,
-    grasas: 24,
-    tiempo: 30,
-    dificultad: "intermedio",
-    tipo: ["cena"],
-    ingredientes: [
-      { nombre: "Salmón", cantidad: 200, unidad: "g", precio: 12000 },
-      { nombre: "Limón", cantidad: 1, unidad: "unidad", precio: 500 },
-      { nombre: "Aceite de oliva", cantidad: 15, unidad: "ml", precio: 800 },
-    ],
-  },
-  {
-    id: "r6",
-    nombre: "Pasta boloñesa",
-    imagen: "https://images.unsplash.com/photo-1555949258-eb67b1ef0ceb?w=200",
-    calorias: 580,
-    proteinas: 28,
-    carbohidratos: 72,
-    grasas: 18,
-    tiempo: 45,
-    dificultad: "intermedio",
-    tipo: ["almuerzo", "cena"],
-    ingredientes: [
-      { nombre: "Pasta", cantidad: 200, unidad: "g", precio: 2000 },
-      { nombre: "Carne molida", cantidad: 150, unidad: "g", precio: 4500 },
-      { nombre: "Tomate", cantidad: 200, unidad: "g", precio: 1000 },
-    ],
-  },
-  {
-    id: "r7",
-    nombre: "Yogur con granola",
-    imagen:
-      "https://images.unsplash.com/photo-1505252585461-04db1eb84625?w=200",
-    calorias: 210,
-    proteinas: 10,
-    carbohidratos: 32,
-    grasas: 5,
-    tiempo: 5,
-    dificultad: "fácil",
-    tipo: ["snack", "desayuno"],
-    ingredientes: [
-      { nombre: "Yogur griego", cantidad: 150, unidad: "g", precio: 3000 },
-      { nombre: "Granola", cantidad: 40, unidad: "g", precio: 1500 },
-    ],
-  },
-  {
-    id: "r8",
-    nombre: "Batido proteico",
-    imagen:
-      "https://images.unsplash.com/photo-1505252585461-04db1eb84625?w=200",
-    calorias: 180,
-    proteinas: 24,
-    carbohidratos: 15,
-    grasas: 3,
-    tiempo: 5,
-    dificultad: "fácil",
-    tipo: ["snack", "desayuno"],
-    ingredientes: [
-      { nombre: "Proteína en polvo", cantidad: 30, unidad: "g", precio: 4000 },
-      { nombre: "Leche", cantidad: 250, unidad: "ml", precio: 1500 },
-      { nombre: "Banano", cantidad: 1, unidad: "unidad", precio: 500 },
-    ],
-  },
-];
-
 const MEAL_LABELS: Record<MealType, string> = {
   desayuno: "Desayuno",
   almuerzo: "Almuerzo",
@@ -226,8 +83,8 @@ const OBJETIVO_CALORIAS = 2000;
 // Paleta del diseño Figma
 const COLORS = {
   bg: "#F5F0ED",
-  card: "#C4918A", // tarjetas de stats — marrón rosado
-  cardDark: "#B07D76", // variante más oscura
+  card: "#C4918A",
+  cardDark: "#B07D76",
   surface: "#FFFFFF",
   tableHeader: "#F8F4F1",
   tableBorder: "#EDE8E4",
@@ -272,6 +129,18 @@ function calcDayNutrition(dayPlan: { [meal in MealType]?: SlotComida }) {
   );
 }
 
+/**
+ * Normaliza el campo tipo/mealType del seed a MealType[]
+ * para compatibilidad con los filtros del planificador.
+ */
+function normalizarTipo(data: any): MealType[] {
+  if (Array.isArray(data.tipo) && data.tipo.length > 0) return data.tipo;
+  if (data.mealType && typeof data.mealType === "string") {
+    return [data.mealType as MealType];
+  }
+  return ["almuerzo"];
+}
+
 // ─── Componente Principal ────────────────────────────────────────────────────
 
 export default function Planificador() {
@@ -280,6 +149,10 @@ export default function Planificador() {
   const [selectedDay, setSelectedDay] = useState<Date>(new Date());
   const [plan, setPlan] = useState<PlanSemana>({});
   const [loading, setLoading] = useState(false);
+
+  // ── Recetas desde Firestore (reemplaza RECETAS_DEMO) ──
+  const [recetasFirestore, setRecetasFirestore] = useState<Receta[]>([]);
+  const [cargandoRecetas, setCargandoRecetas] = useState(false);
 
   const [modalAgregar, setModalAgregar] = useState(false);
   const [modalOpciones, setModalOpciones] = useState(false);
@@ -307,11 +180,51 @@ export default function Planificador() {
   useEffect(() => {
     setWeekDates(getWeekDates(weekOffset));
   }, [weekOffset]);
+
   useEffect(() => {
     if (userId) cargarPlan();
   }, [weekDates, userId]);
 
-  // ─── Firestore ─────────────────────────────────────────────────────────────
+  // Carga recetas de Firestore al montar el componente
+  useEffect(() => {
+    cargarRecetasFirestore();
+  }, []);
+
+  // ─── Firestore — Recetas ──────────────────────────────────────────────────
+
+  const cargarRecetasFirestore = async () => {
+    setCargandoRecetas(true);
+    try {
+      const q = query(collection(db, "recipes"), orderBy("creadoEn", "desc"));
+      const snap = await getDocs(q);
+      const lista: Receta[] = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          nombre: data.titulo || data.nombre || "Sin nombre",
+          imagen: data.imagen || "",
+          calorias: data.calorias || 0,
+          proteinas: data.proteinas || 0,
+          carbohidratos: data.carbohidratos || 0,
+          grasas: data.grasas || 0,
+          tiempo: data.tiempo || 30,
+          dificultad: data.dificultad || "fácil",
+          tipo: normalizarTipo(data),
+          ingredientes: Array.isArray(data.ingredientes)
+            ? data.ingredientes
+            : [],
+        };
+      });
+      setRecetasFirestore(lista);
+    } catch (e) {
+      console.error("Error cargando recetas:", e);
+      Alert.alert("Error", "No se pudieron cargar las recetas.");
+    } finally {
+      setCargandoRecetas(false);
+    }
+  };
+
+  // ─── Firestore — Plan ─────────────────────────────────────────────────────
 
   const cargarPlan = async () => {
     if (!userId) return;
@@ -431,7 +344,6 @@ export default function Planificador() {
 
   const handleMover = () => {
     const todayKey = dateKey(new Date());
-    // Primer día futuro disponible (hoy o después)
     const primerDiaValido = weekDates.find((d) => dateKey(d) >= todayKey);
     setDiaDestino(primerDiaValido ? dateKey(primerDiaValido) : todayKey);
     if (slotActual) setMealDestino(slotActual.meal);
@@ -463,6 +375,7 @@ export default function Planificador() {
     }
   };
 
+  // generarListaCompras usa recetasFirestore en lugar de RECETAS_DEMO
   const generarListaCompras = async () => {
     const todasRecetas = Object.values(plan).flatMap(
       (day) => Object.values(day || {}).filter(Boolean) as SlotComida[],
@@ -482,7 +395,7 @@ export default function Planificador() {
         }
       > = {};
       for (const slot of todasRecetas) {
-        const receta = RECETAS_DEMO.find((r) => r.id === slot.recetaId);
+        const receta = recetasFirestore.find((r) => r.id === slot.recetaId);
         if (!receta) continue;
         for (const ing of receta.ingredientes) {
           const key = ing.nombre.toLowerCase();
@@ -528,7 +441,8 @@ export default function Planificador() {
 
   // ─── Datos computados ──────────────────────────────────────────────────────
 
-  const recetasFiltradas = RECETAS_DEMO.filter((r) => {
+  // Filtra sobre recetasFirestore en lugar de RECETAS_DEMO
+  const recetasFiltradas = recetasFirestore.filter((r) => {
     const matchBusqueda = r.nombre
       .toLowerCase()
       .includes(busqueda.toLowerCase());
@@ -840,7 +754,13 @@ export default function Planificador() {
             ))}
           </ScrollView>
 
-          {recetaSeleccionada ? (
+          {/* Loading mientras cargan las recetas de Firestore */}
+          {cargandoRecetas ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.card} />
+              <Text style={styles.loadingText}>Cargando recetas...</Text>
+            </View>
+          ) : recetaSeleccionada ? (
             <ScrollView
               contentContainerStyle={styles.porcionesView}
               showsVerticalScrollIndicator={false}
@@ -928,6 +848,9 @@ export default function Planificador() {
               data={recetasFiltradas}
               keyExtractor={(r) => r.id}
               contentContainerStyle={{ padding: 16, gap: 10 }}
+              ListEmptyComponent={
+                <Text style={styles.emptyText}>No se encontraron recetas</Text>
+              }
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.recetaCard}
@@ -1129,7 +1052,6 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { paddingBottom: 20 },
 
-  // Header (igual al Home)
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -1161,7 +1083,6 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
-  // Stats
   statsGrid: {
     flexDirection: "row",
     paddingHorizontal: 16,
@@ -1190,7 +1111,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  // Tabla semanal
   tableCard: {
     marginHorizontal: 16,
     backgroundColor: COLORS.surface,
@@ -1203,7 +1123,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 4,
   },
-
   tableHeaderRow: {
     backgroundColor: COLORS.tableHeader,
     paddingHorizontal: 12,
@@ -1250,7 +1169,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     marginTop: 2,
   },
-
   weekNavRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -1264,7 +1182,6 @@ const styles = StyleSheet.create({
   weekNavArrow: { fontSize: 22, color: COLORS.textMuted, fontWeight: "300" },
   weekNavLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: "500" },
 
-  // Filas de comidas en tabla
   mealRow: {
     flexDirection: "row",
     minHeight: 64,
@@ -1286,7 +1203,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.text,
   },
-
   dayCellsScroll: { flex: 1 },
   dayCellsRow: { flexDirection: "row" },
   dayCell: {
@@ -1304,7 +1220,6 @@ const styles = StyleSheet.create({
   dayCellPast: {
     backgroundColor: "#F9F9F9",
   },
-
   slotFilledCell: {
     width: 44,
     alignItems: "center",
@@ -1327,7 +1242,6 @@ const styles = StyleSheet.create({
     color: COLORS.textMuted,
     textAlign: "center",
   },
-
   slotEmptyCell: {
     width: 32,
     height: 32,
@@ -1344,7 +1258,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  // Botones de acción
   actionBtn: {
     marginHorizontal: 16,
     marginTop: 10,
@@ -1364,8 +1277,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#fff",
   },
-
-  // ── Modales (se mantiene igual) ──────────────────────────────────────────
 
   modalContainer: { flex: 1, backgroundColor: COLORS.bg },
   modalHeader: {
@@ -1482,7 +1393,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     textAlign: "center",
   },
-
   macrosRow: { flexDirection: "row", justifyContent: "space-around" },
   macroItem: { alignItems: "center", gap: 3 },
   macroLabel: { fontSize: 11, color: "#888" },
@@ -1561,5 +1471,23 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: 8,
     marginBottom: 20,
+  },
+
+  // Únicos estilos nuevos — loading y empty state
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: COLORS.textMuted,
+  },
+  emptyText: {
+    textAlign: "center",
+    color: COLORS.textMuted,
+    fontSize: 14,
+    marginTop: 40,
   },
 });

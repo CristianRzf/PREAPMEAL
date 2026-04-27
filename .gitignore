@@ -76,3 +76,6 @@ firebase-debug.log
 
 expo-env.d.ts
 # @end expo-cli
+
+#Firebase Clave Privada
+serviceAccount.json
