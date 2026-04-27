@@ -1,5 +1,6 @@
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../config/firebase";
+import { createUserWithEmailAndPassword, sendEmailVerification} from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
+import { auth , db} from "../../config/firebase";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import {
@@ -47,12 +48,19 @@ export default function Register() {
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
+      const user = userCredential.user;
 
-      console.log("Usuario creado:", userCredential.user.email);
+      await setDoc(doc(db, "users", user.uid), {
+        email: email,
+        createdAt: new Date(),
+      });
 
-      alert("Cuenta creada correctamente");
+      await sendEmailVerification(user);
 
-  
+      alert("Se ha enviado un correo de verificación a " + email);
+
+      router.replace ("/(auth)/verificaremail");
+
     } catch (error: any) {
       alert("Error al registrar: " + error.message);
     } finally {
