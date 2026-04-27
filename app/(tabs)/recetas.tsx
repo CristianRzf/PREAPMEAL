@@ -13,6 +13,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  where,
 } from "firebase/firestore";
 import React, { useEffect, useState } from "react";
 import {
@@ -146,15 +147,20 @@ export default function RecetasScreen() {
   useEffect(() => { cargarExplorar(); }, []);
   useEffect(() => { if (activeTab === "Mis recetas") cargarMisRecetas(); }, [activeTab]);
 
-  const cargarExplorar = async () => {
-    setLoadingExplorar(true);
-    try {
-      const q = query(collection(db, "recipes"), orderBy("creadoEn", "desc"));
-      const snap = await getDocs(q);
-      setRecetasExplorar(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecetaUsuario)));
-    } catch (e) { console.error(e); }
-    finally { setLoadingExplorar(false); }
-  };
+const cargarExplorar = async () => {
+  setLoadingExplorar(true);
+  try {
+    const q = query(
+      collection(db, "recipes"),
+      where("userId", "!=", "system"),
+      orderBy("userId"),
+      orderBy("creadoEn", "desc")
+    );
+    const snap = await getDocs(q);
+    setRecetasExplorar(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecetaUsuario)));
+  } catch (e) { console.error(e); }
+  finally { setLoadingExplorar(false); }
+};
 
   const cargarMisRecetas = async () => {
     if (!userId) return;
