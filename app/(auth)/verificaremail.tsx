@@ -27,7 +27,7 @@ export default function VerifyEmail() {
 
         if (auth.currentUser?.emailVerified) {
           alert("Correo verificado automáticamente ✅");
-          router.replace(".");
+          router.replace("./(tabs)/index");
         }
       }
 
@@ -55,7 +55,7 @@ export default function VerifyEmail() {
 
     if (auth.currentUser?.emailVerified) {
       alert("Correo verificado ✅");
-      router.replace("/(tabs)");
+      router.replace("./(tabs)/index");
     } else {
       alert("Aún no has verificado tu correo ❌");
     }
