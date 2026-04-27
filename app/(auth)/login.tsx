@@ -27,13 +27,14 @@ export default function Login() {
     setLoading(true);
 
     try {
-const userCredential = await signInWithEmailAndPassword(auth, email, password);
+  const userCredential = await signInWithEmailAndPassword(auth, email, password);
 
-      router.replace("/(tabs)"); // Redirige a la pantalla principal después de iniciar sesión
-      console.log("Usuario logueado:", userCredential.user?.email);
-      alert("¡Inicio de sesión exitoso! Bienvenido " + userCredential.user?.email);
-      // No hace falta navegar manualmente.a
-      // RootLayout detectará el usuario y redirigirá a (app)
+
+    router.replace("/(tabs)"); // Redirige a la pantalla principal después de iniciar sesión
+    console.log("Usuario logueado:", userCredential.user?.email);
+    alert("¡Inicio de sesión exitoso! Bienvenido " + userCredential.user?.email);
+    // No hace falta navegar manualmente.a
+    // RootLayout detectará el usuario y redirigirá a (app)
     } catch (error: any) {
       alert("Error al iniciar sesión: " + error.message);
     } finally {
