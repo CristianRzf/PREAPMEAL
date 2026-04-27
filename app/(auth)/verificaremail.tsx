@@ -27,7 +27,7 @@ export default function VerifyEmail() {
 
         if (auth.currentUser?.emailVerified) {
           alert("Correo verificado automáticamente ✅");
-          router.replace("/(tabs)");
+          router.replace(".");
         }
       }
 

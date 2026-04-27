@@ -18,32 +18,33 @@ export default function RootLayout() {
     return subscriber;
   }, []);
 
-  useEffect(() => {
+ useEffect(() => {
   if (initializing) return;
 
   const inAuthGroup = segments[0] === "(auth)";
   const inVerify = segments[1] === "verificaremail";
 
-  if (user) {
-    // Usuario NO verificado
-    if (!user.emailVerified) {
-      // Solo bloquear acceso a la app (tabs)
-      if (!inAuthGroup || (!inVerify && !inAuthGroup)) {
-        router.replace("/(auth)/verificaremail");
-      }
-      return;
-    }
-
-    // Usuario verificado
-    if (inAuthGroup) {
-      router.replace("/(tabs)");
-    }
-  } else {
+  if (!user) {
     // No logueado
     if (!inAuthGroup) {
       router.replace("/(auth)/welcome");
     }
+    return;
   }
+
+  if (!user.emailVerified) {
+    // Logueado pero NO verificado
+    if (!inVerify) {
+      router.replace("/(auth)/verificaremail");
+    }
+    return;
+  }
+
+  // Logueado y verificado
+  if (inAuthGroup) {
+    router.replace("/(tabs)");
+  }
+
 }, [user, initializing, segments]);
 
   if (initializing) {
