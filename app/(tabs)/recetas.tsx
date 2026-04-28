@@ -19,8 +19,6 @@ import {
   orderBy,
   query,
   serverTimestamp,
-<<<<<<< Updated upstream
-  where,
 } from "firebase/firestore";
 =======
 } from "firebase/firestore";
@@ -200,11 +198,7 @@ export default function RecetasScreen() {
   const cargarExplorar = async () => {
     setLoadingExplorar(true);
     try {
-      const q = query(
-        collection(db, "recipes"),
-        where("publica", "==", true),
-        orderBy("creadoEn", "desc")
-      );
+      const q = query(collection(db, "recipes"), orderBy("creadoEn", "desc"));
       const snap = await getDocs(q);
       setRecetasExplorar(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecetaUsuario)));
     } catch (e) { console.error(e); }

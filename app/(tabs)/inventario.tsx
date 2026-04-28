@@ -31,6 +31,8 @@ type Item = {
   expirationDays: number;
   expirationDate?: string;
   notificationIds?: string[];
+  category?: string,
+  notes?: string,
 };
 
 export default function Inventario() {
@@ -47,6 +49,10 @@ export default function Inventario() {
 
   const [newQtyNumber, setNewQtyNumber] = useState("");
   const [newUnit, setNewUnit] = useState("");
+
+  const [newCategory, setNewCategory] = useState("");
+  const [newNotes, setNewNotes] = useState("");
+
   const [newLocation, setNewLocation] = useState<"Nevera" | "Despensa" | "Congelador">(
     "Nevera",
   );
@@ -157,6 +163,8 @@ export default function Inventario() {
     const parts = item.quantity.split(" ");
     setNewQtyNumber(parts[0] || "");
     setNewUnit(parts[1] || "");
+    setNewCategory(item.category || "");
+    setNewNotes(item.notes || "");
     setNewLocation(item.location);
     setNewDays(item.expirationDays.toString());
 
@@ -197,6 +205,8 @@ export default function Inventario() {
         name: newName,
         quantity: `${newQtyNumber} ${newUnit}`,
         location: newLocation,
+        category: newCategory,
+        notes: newNotes,
         expirationDays: Number(newDays),
         expirationDate: expirationDate?.toISOString(),
         notificationIds,
@@ -206,6 +216,8 @@ export default function Inventario() {
         name: newName,
         quantity: `${newQtyNumber} ${newUnit}`,
         location: newLocation,
+        category: newCategory,
+        notes: newNotes,
         expirationDays: Number(newDays),
         expirationDate: expirationDate?.toISOString(),
         notificationIds,
@@ -215,6 +227,8 @@ export default function Inventario() {
     setNewName("");
     setNewQtyNumber("");
     setNewUnit("");
+    setNewCategory("");
+    setNewNotes("");
     setNewDays("");
     setExpirationDate(null);
     setNewLocation("Nevera");
@@ -258,6 +272,18 @@ export default function Inventario() {
       <View>
         <Text style={styles.itemName}>{item.name}</Text>
         <Text style={styles.itemQty}>{item.quantity}</Text>
+        {item.category && (
+          <Text style={{ fontSize: 11, color: "#888" }}>
+             {item.category}
+             </Text>
+        )}
+        
+        {item.notes && (
+           <Text style={{ fontSize: 11, color: "#aaa" }}>
+            {item.notes}
+            </Text>
+        )}
+        
         <Text style={styles.location}>
           {item.location === "Nevera" 
           ? "Nevera" 
@@ -464,6 +490,23 @@ export default function Inventario() {
                 </TouchableOpacity>
               
               </View>
+
+              <Text style={styles.label}>Categoría</Text>
+              <TextInput
+                placeholder="Ej: Lácteos, Verduras, Frutas"
+                style={styles.input}
+                value={newCategory}
+                onChangeText={setNewCategory}
+                />
+
+              <Text style={styles.label}>Notas</Text>  
+              <TextInput
+                placeholder="Ej: Marca, Organico"
+                style={[styles.input, {height: 80}]}
+                value={newNotes}
+                onChangeText={setNewNotes}
+                multiline
+                />
 
               <Text style={styles.label}>Días para vencimiento</Text>
               <TouchableOpacity

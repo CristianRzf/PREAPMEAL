@@ -18,17 +18,34 @@ export default function RootLayout() {
     return subscriber;
   }, []);
 
-  useEffect(() => {
-    if (initializing) return;
+ useEffect(() => {
+  if (initializing) return;
 
-    const inAuthGroup = segments[0] === "(auth)";
+  const inAuthGroup = segments[0] === "(auth)";
+  const inVerify = segments[1] === "verificaremail";
 
-    if (user && inAuthGroup) {
-      router.replace("/(tabs)");
-    } else if (!user && !inAuthGroup) {
+  if (!user) {
+    // No logueado
+    if (!inAuthGroup) {
       router.replace("/(auth)/welcome");
     }
-  }, [user, initializing, segments]);
+    return;
+  }
+
+  if (!user.emailVerified) {
+    // Logueado pero NO verificado
+    if (!inVerify) {
+      router.replace("/(auth)/verificaremail");
+    }
+    return;
+  }
+
+  // Logueado y verificado
+  if (inAuthGroup) {
+    router.replace("/(tabs)");
+  }
+
+}, [user, initializing, segments]);
 
   if (initializing) {
     return (

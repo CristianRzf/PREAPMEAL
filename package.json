@@ -37,6 +37,7 @@
     "expo-updates": "~29.0.16",
     "expo-web-browser": "~15.0.10",
     "firebase": "^12.11.0",
+    "firebase-admin": "^13.8.0",
     "phosphor": "^0.7.1",
     "phosphor-react-native": "^3.0.4",
     "react": "19.1.0",
