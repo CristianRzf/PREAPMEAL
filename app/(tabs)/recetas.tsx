@@ -33,12 +33,10 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-// ─── Cloudinary ───────────────────────────────────────────────────────────────
 const CLOUDINARY_CLOUD_NAME = "dbbsgfsr6";
 const CLOUDINARY_UPLOAD_PRESET = "mealprep_uploads";
 const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
 
-// ─── Paleta ───────────────────────────────────────────────────────────────────
 const COLORS = {
   bg: "#F5F0ED",
   card: "#C4918A",
@@ -52,7 +50,6 @@ const COLORS = {
 const { width } = Dimensions.get("window");
 const CARD_WIDTH = (width - 48) / 2;
 
-// ─── Tipos ────────────────────────────────────────────────────────────────────
 type TabType = "Explorar" | "Mis recetas";
 type Dificultad = "fácil" | "intermedio" | "difícil";
 type MealType = "desayuno" | "almuerzo" | "cena" | "snack";
@@ -76,17 +73,14 @@ const MEAL_LABELS: Record<string, string> = {
   desayuno: "Desayuno", almuerzo: "Almuerzo", cena: "Cena", snack: "Snack", todas: "Todas",
 };
 
-// ─── Subir imagen a Cloudinary ────────────────────────────────────────────────
 async function subirImagenCloudinary(uri: string): Promise<string> {
   const formData = new FormData();
 
   if (Platform.OS === "web") {
-    // En web: convertir base64/blob
     const response = await fetch(uri);
     const blob = await response.blob();
     formData.append("file", blob);
   } else {
-    // En nativo: usar uri directamente
     const filename = uri.split("/").pop() || "photo.jpg";
     const match = /\.(\w+)$/.exec(filename);
     const type = match ? `image/${match[1]}` : "image/jpeg";
@@ -109,7 +103,6 @@ async function subirImagenCloudinary(uri: string): Promise<string> {
   return data.secure_url;
 }
 
-// ─── Pantalla principal ───────────────────────────────────────────────────────
 export default function RecetasScreen() {
   const auth = getAuth();
   const db = getFirestore();
@@ -117,18 +110,15 @@ export default function RecetasScreen() {
 
   const [activeTab, setActiveTab] = useState<TabType>("Explorar");
 
-  // Explorar
   const [busqueda, setBusqueda] = useState("");
   const [filtroTipo, setFiltroTipo] = useState<MealType | "todas">("todas");
   const [filtroDif, setFiltroDif] = useState<Dificultad | "todas">("todas");
   const [recetasExplorar, setRecetasExplorar] = useState<RecetaUsuario[]>([]);
   const [loadingExplorar, setLoadingExplorar] = useState(true);
 
-  // Mis recetas
   const [misRecetas, setMisRecetas] = useState<RecetaUsuario[]>([]);
   const [loadingMisRecetas, setLoadingMisRecetas] = useState(false);
 
-  // Modal subir
   const [modalSubir, setModalSubir] = useState(false);
   const [saving, setSaving] = useState(false);
   const [uploadingImg, setUploadingImg] = useState(false);
@@ -141,26 +131,25 @@ export default function RecetasScreen() {
   const [formImagenUri, setFormImagenUri] = useState<string | null>(null);
   const [formImagenUrl, setFormImagenUrl] = useState<string | null>(null);
 
-  // Modal detalle
   const [recetaDetalle, setRecetaDetalle] = useState<RecetaUsuario | null>(null);
 
   useEffect(() => { cargarExplorar(); }, []);
   useEffect(() => { if (activeTab === "Mis recetas") cargarMisRecetas(); }, [activeTab]);
 
-const cargarExplorar = async () => {
-  setLoadingExplorar(true);
-  try {
-    const q = query(
-      collection(db, "recipes"),
-      where("userId", "!=", "system"),
-      orderBy("userId"),
-      orderBy("creadoEn", "desc")
-    );
-    const snap = await getDocs(q);
-    setRecetasExplorar(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecetaUsuario)));
-  } catch (e) { console.error(e); }
-  finally { setLoadingExplorar(false); }
-};
+  const cargarExplorar = async () => {
+    setLoadingExplorar(true);
+    try {
+      const q = query(
+        collection(db, "recipes"),
+        where("userId", "!=", "system"),
+        orderBy("userId"),
+        orderBy("creadoEn", "desc")
+      );
+      const snap = await getDocs(q);
+      setRecetasExplorar(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecetaUsuario)));
+    } catch (e) { console.error(e); }
+    finally { setLoadingExplorar(false); }
+  };
 
   const cargarMisRecetas = async () => {
     if (!userId) return;
@@ -179,17 +168,10 @@ const cargarExplorar = async () => {
     setFormImagenUri(null); setFormImagenUrl(null);
   };
 
-  // Seleccionar imagen de galería o cámara
   const seleccionarImagen = () => {
     Alert.alert("Agregar foto", "¿Cómo quieres agregar la imagen?", [
-      {
-        text: "Galería",
-        onPress: () => abrirGaleria(),
-      },
-      {
-        text: "Cámara",
-        onPress: () => abrirCamara(),
-      },
+      { text: "Galería", onPress: () => abrirGaleria() },
+      { text: "Cámara", onPress: () => abrirCamara() },
       { text: "Cancelar", style: "cancel" },
     ]);
   };
@@ -206,9 +188,7 @@ const cargarExplorar = async () => {
       aspect: [4, 3],
       quality: 0.7,
     });
-    if (!result.canceled) {
-      await procesarImagen(result.assets[0].uri);
-    }
+    if (!result.canceled) await procesarImagen(result.assets[0].uri);
   };
 
   const abrirCamara = async () => {
@@ -222,9 +202,7 @@ const cargarExplorar = async () => {
       aspect: [4, 3],
       quality: 0.7,
     });
-    if (!result.canceled) {
-      await procesarImagen(result.assets[0].uri);
-    }
+    if (!result.canceled) await procesarImagen(result.assets[0].uri);
   };
 
   const procesarImagen = async (uri: string) => {
@@ -270,7 +248,7 @@ const cargarExplorar = async () => {
       await addDoc(collection(db, "recipes"), recetaData);
       await addDoc(collection(db, "users", userId, "recipes"), recetaData);
 
-      Alert.alert("✓ Publicada", "Tu receta ya es visible para todos.");
+      Alert.alert("Publicada", "Tu receta ya es visible para todos.");
       resetForm();
       setModalSubir(false);
       cargarExplorar();
@@ -317,7 +295,6 @@ const cargarExplorar = async () => {
     <SafeAreaView style={styles.safe}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>Recetas</Text>
@@ -331,7 +308,6 @@ const cargarExplorar = async () => {
         </View>
       </View>
 
-      {/* Tabs */}
       <View style={styles.tabsRow}>
         {(["Explorar", "Mis recetas"] as TabType[]).map((tab) => (
           <TouchableOpacity
@@ -344,12 +320,17 @@ const cargarExplorar = async () => {
         ))}
       </View>
 
-      {/* ── TAB EXPLORAR ── */}
       {activeTab === "Explorar" && (
         <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
           <View style={styles.searchRow}>
             <Ionicons name="search-outline" size={18} color={COLORS.textMuted} />
-            <TextInput style={styles.searchInput} placeholder="Buscar receta..." placeholderTextColor={COLORS.textMuted} value={busqueda} onChangeText={setBusqueda} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Buscar receta..."
+              placeholderTextColor={COLORS.textMuted}
+              value={busqueda}
+              onChangeText={setBusqueda}
+            />
             {busqueda.length > 0 && (
               <TouchableOpacity onPress={() => setBusqueda("")}>
                 <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
@@ -408,7 +389,6 @@ const cargarExplorar = async () => {
         </ScrollView>
       )}
 
-      {/* ── TAB MIS RECETAS ── */}
       {activeTab === "Mis recetas" && (
         <View style={{ flex: 1 }}>
           {loadingMisRecetas ? (
@@ -460,7 +440,6 @@ const cargarExplorar = async () => {
         </View>
       )}
 
-      {/* ─── Modal Detalle ────────────────────────────────────────────────── */}
       <Modal visible={!!recetaDetalle} animationType="slide" statusBarTranslucent>
         {recetaDetalle && (
           <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
@@ -506,7 +485,6 @@ const cargarExplorar = async () => {
         )}
       </Modal>
 
-      {/* ─── Modal Publicar ───────────────────────────────────────────────── */}
       <Modal visible={modalSubir} animationType="slide">
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top", "left", "right"]}>
           <View style={styles.modalHeader}>
@@ -518,8 +496,6 @@ const cargarExplorar = async () => {
           </View>
 
           <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
-
-            {/* Foto */}
             <TouchableOpacity style={styles.fotoBtn} onPress={seleccionarImagen} disabled={uploadingImg}>
               {formImagenUri ? (
                 <View style={{ width: "100%", height: "100%" }}>
@@ -598,7 +574,6 @@ const cargarExplorar = async () => {
   );
 }
 
-// ─── RecetaCard ───────────────────────────────────────────────────────────────
 function RecetaCard({ receta, onPress }: { receta: RecetaUsuario; onPress: () => void }) {
   return (
     <TouchableOpacity style={cardStyles.container} onPress={onPress} activeOpacity={0.85}>
@@ -641,7 +616,6 @@ const cardStyles = StyleSheet.create({
   metaText: { fontSize: 10, color: "rgba(255,255,255,0.85)" },
 });
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingHorizontal: 20, paddingTop: 16, paddingBottom: 12 },
