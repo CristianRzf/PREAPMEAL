@@ -478,7 +478,7 @@ export default function RecetasScreen() {
                 <View style={styles.detalleMeta}>
                   <View style={styles.detalleMetaItem}>
                     <Ionicons name="time-outline" size={16} color={COLORS.card} />
-                    <Text style={styles.detalleMetaText}>{recetaDetalle.tiempo} min</Text>
+                    <Text style={styles.detalleMetaText}>{recetaDetalle.tiempo} Min</Text>
                   </View>
                   <View style={styles.detalleMetaItem}>
                     <Ionicons name="flame-outline" size={16} color={COLORS.card} />
@@ -811,4 +811,4 @@ const styles = StyleSheet.create({
 
   publishBtn: { backgroundColor: COLORS.card, paddingVertical: 15, borderRadius: 14, alignItems: "center", marginTop: 8 },
   publishBtnText: { color: "#fff", fontWeight: "800", fontSize: 15 },
-});s
+});
