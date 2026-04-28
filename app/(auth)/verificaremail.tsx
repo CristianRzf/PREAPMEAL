@@ -73,6 +73,7 @@ export default function VerifyEmail() {
       setResendCooldown(30); // ⏱️ 30 segundos
     } catch (error: any) {
       alert("Error al reenviar: " + error.message);
+      console.log("Error al reenviar correo de verificación:", error );
     }
   };
 
