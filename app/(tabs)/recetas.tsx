@@ -811,4 +811,4 @@ const styles = StyleSheet.create({
 
   publishBtn: { backgroundColor: COLORS.card, paddingVertical: 15, borderRadius: 14, alignItems: "center", marginTop: 8 },
   publishBtnText: { color: "#fff", fontWeight: "800", fontSize: 15 },
-});s
+});
