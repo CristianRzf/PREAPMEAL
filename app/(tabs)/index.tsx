@@ -272,19 +272,19 @@ useEffect(() => {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
 
         {/* HEADER */}
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.greeting}>{getGreeting()},</Text>
-            <Text style={styles.name}>{firstName} 👋</Text>
-            <Text style={styles.date}>{getDayString()}</Text>
-          </View>
-          <View style={styles.headerRight}>
-            <Image source={require("../../Logo Chef.png")} style={styles.logo} />
-            <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
-              <Icons.SignOutIcon size={18} color="#C4918A" weight="bold" />
-            </TouchableOpacity>
-          </View>
-        </View>
+<View style={styles.header}>
+  <View style={styles.headerLeft}>
+    <Image source={require("../../Logo Chef.png")} style={styles.logo} />
+    <View>
+      <Text style={styles.greeting}>{getGreeting()},</Text>
+      <Text style={styles.name}>{firstName} 👋</Text>
+      <Text style={styles.date}>{getDayString()}</Text>
+    </View>
+  </View>
+  <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
+    <Icons.SignOutIcon size={18} color="#C4918A" weight="bold" />
+  </TouchableOpacity>
+</View>
 
         {/* INNER TABS */}
         <View style={styles.innerTabBar}>
@@ -585,12 +585,26 @@ const styles = StyleSheet.create({
   scroll: { flex: 1 },
   scrollContent: { padding: 20 },
 
-  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 },
+  header: {
+  flexDirection: "row",
+  justifyContent: "space-between",
+  alignItems: "center",
+  marginBottom: 20,
+},
+headerLeft: {
+  flexDirection: "row",
+  alignItems: "center",
+  gap: 12,
+},
   greeting: { fontSize: 14, color: "#888" },
   name: { fontSize: 26, fontWeight: "700", color: "#2c1810", marginTop: 2 },
   date: { fontSize: 12, color: "#aaa", marginTop: 2 },
   headerRight: { alignItems: "center", gap: 8 },
-  logo: { width: 52, height: 52, borderRadius: 12 },
+  logo: {
+  width: 48,
+  height: 48,
+  borderRadius: 12,
+},
   logoutBtn: { backgroundColor: "#fff", borderRadius: 10, padding: 8, shadowColor: "#000", shadowOpacity: 0.06, shadowRadius: 4, elevation: 2 },
 
   innerTabBar: { flexDirection: "row", backgroundColor: "#fff", borderRadius: 14, padding: 4, marginBottom: 20, shadowColor: "#000", shadowOpacity: 0.04, shadowRadius: 6, elevation: 1 },
@@ -643,8 +657,12 @@ const styles = StyleSheet.create({
   txIcon: { backgroundColor: "#FFF4EE", padding: 8, borderRadius: 10 },
 
   sectionTitle: { fontSize: 16, fontWeight: "700", color: "#2c1810", marginBottom: 12 },
-  quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  quickCard: { width: "30%", flexGrow: 1, borderRadius: 16, padding: 16, alignItems: "center", gap: 8, minWidth: 90 },
+  quickGrid: { flexDirection: "row", 
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 16,},
+
+  quickCard: { width: "47%", borderRadius: 16, padding: 16, alignItems: "center", gap: 8 },
   quickLabel: { fontSize: 12, fontWeight: "600", textAlign: "center" },
 
   emptyCard: { backgroundColor: "#fff", borderRadius: 20, padding: 32, alignItems: "center", gap: 10, marginBottom: 16, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
