@@ -13,8 +13,10 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
+  where,
 } from "firebase/firestore";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -44,6 +46,7 @@ const COLORS = {
   textMuted: "#7A5C56",
   textLight: "#FFFFFF",
   border: "#EDE8E4",
+  error: "#FF6B6B",
 };
 
 const { width } = Dimensions.get("window");
@@ -66,6 +69,8 @@ interface RecetaUsuario {
   userId: string;
   username: string;
   creadoEn: any;
+  publica: boolean;
+  globalId?: string;
 }
 
 const MEAL_LABELS: Record<string, string> = {
@@ -74,7 +79,6 @@ const MEAL_LABELS: Record<string, string> = {
 
 async function subirImagenCloudinary(uri: string): Promise<string> {
   const formData = new FormData();
-
   if (Platform.OS === "web") {
     const response = await fetch(uri);
     const blob = await response.blob();
@@ -85,19 +89,9 @@ async function subirImagenCloudinary(uri: string): Promise<string> {
     const type = match ? `image/${match[1]}` : "image/jpeg";
     formData.append("file", { uri, name: filename, type } as any);
   }
-
   formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
-
-  const response = await fetch(CLOUDINARY_URL, {
-    method: "POST",
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`Cloudinary error: ${error}`);
-  }
-
+  const response = await fetch(CLOUDINARY_URL, { method: "POST", body: formData });
+  if (!response.ok) throw new Error(`Cloudinary error: ${await response.text()}`);
   const data = await response.json();
   return data.secure_url;
 }
@@ -108,13 +102,12 @@ export default function RecetasScreen() {
   const userId = auth.currentUser?.uid;
 
   const [activeTab, setActiveTab] = useState<TabType>("Explorar");
-
   const [busqueda, setBusqueda] = useState("");
   const [filtroTipo, setFiltroTipo] = useState<MealType | "todas">("todas");
   const [filtroDif, setFiltroDif] = useState<Dificultad | "todas">("todas");
   const [recetasExplorar, setRecetasExplorar] = useState<RecetaUsuario[]>([]);
   const [loadingExplorar, setLoadingExplorar] = useState(true);
-
+  const [errorExplorar, setErrorExplorar] = useState<string | null>(null);
   const [misRecetas, setMisRecetas] = useState<RecetaUsuario[]>([]);
   const [loadingMisRecetas, setLoadingMisRecetas] = useState(false);
 
@@ -129,44 +122,107 @@ export default function RecetasScreen() {
   const [formMeal, setFormMeal] = useState<MealType>("almuerzo");
   const [formImagenUri, setFormImagenUri] = useState<string | null>(null);
   const [formImagenUrl, setFormImagenUrl] = useState<string | null>(null);
-
+  const [formPublica, setFormPublica] = useState(true);
   const [recetaDetalle, setRecetaDetalle] = useState<RecetaUsuario | null>(null);
+
+  // ── Me gusta y Guardadas ──────────────────────────────────────────────────
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
   useEffect(() => { cargarExplorar(); }, []);
   useEffect(() => { if (activeTab === "Mis recetas") cargarMisRecetas(); }, [activeTab]);
+  useEffect(() => { if (userId) { cargarLiked(); cargarSaved(); } }, [userId]);
 
-  // Lee de "recipesUsuarios" — colección exclusiva del explorador
   const cargarExplorar = async () => {
     setLoadingExplorar(true);
+    setErrorExplorar(null);
     try {
-      const q = query(
-        collection(db, "recipesUsuarios"),
-        orderBy("creadoEn", "desc")
-      );
+      const q = query(collection(db, "public_recipes"), orderBy("creadoEn", "desc"));
       const snap = await getDocs(q);
       setRecetasExplorar(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecetaUsuario)));
-    } catch (e) { console.error(e); }
-    finally { setLoadingExplorar(false); }
+    } catch (e: any) {
+      console.error("ERROR Explorar:", e);
+      setErrorExplorar(e?.message || "Error al cargar recetas");
+    } finally {
+      setLoadingExplorar(false);
+    }
   };
 
   const cargarMisRecetas = async () => {
     if (!userId) return;
     setLoadingMisRecetas(true);
     try {
-      const q = query(
-        collection(db, "users", userId, "recipes"),
-        orderBy("creadoEn", "desc")
-      );
+      const q = query(collection(db, "users", userId, "recipes"), orderBy("creadoEn", "desc"));
       const snap = await getDocs(q);
       setMisRecetas(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecetaUsuario)));
-    } catch (e) { console.error(e); }
+    } catch (e) { console.error("ERROR MisRecetas:", e); }
     finally { setLoadingMisRecetas(false); }
+  };
+
+  const cargarLiked = async () => {
+    if (!userId) return;
+    try {
+      const snap = await getDocs(collection(db, "users", userId, "liked"));
+      setLikedIds(new Set(snap.docs.map((d) => d.id)));
+    } catch (e) { console.error(e); }
+  };
+
+  const cargarSaved = async () => {
+    if (!userId) return;
+    try {
+      const snap = await getDocs(collection(db, "users", userId, "saved"));
+      setSavedIds(new Set(snap.docs.map((d) => d.id)));
+    } catch (e) { console.error(e); }
+  };
+
+  const toggleLike = async (receta: RecetaUsuario) => {
+    if (!userId) return;
+    const ref = doc(db, "users", userId, "liked", receta.id);
+    if (likedIds.has(receta.id)) {
+      await deleteDoc(ref);
+      setLikedIds((prev) => { const s = new Set(prev); s.delete(receta.id); return s; });
+    } else {
+      await setDoc(ref, {
+        titulo: receta.titulo,
+        imagen: receta.imagen,
+        calorias: receta.calorias,
+        tiempo: receta.tiempo,
+        dificultad: receta.dificultad,
+        mealType: receta.mealType,
+        userId: receta.userId,
+        username: receta.username,
+        creadoEn: serverTimestamp(),
+      });
+      setLikedIds((prev) => new Set(prev).add(receta.id));
+    }
+  };
+
+  const toggleSave = async (receta: RecetaUsuario) => {
+    if (!userId) return;
+    const ref = doc(db, "users", userId, "saved", receta.id);
+    if (savedIds.has(receta.id)) {
+      await deleteDoc(ref);
+      setSavedIds((prev) => { const s = new Set(prev); s.delete(receta.id); return s; });
+    } else {
+      await setDoc(ref, {
+        titulo: receta.titulo,
+        imagen: receta.imagen,
+        calorias: receta.calorias,
+        tiempo: receta.tiempo,
+        dificultad: receta.dificultad,
+        mealType: receta.mealType,
+        userId: receta.userId,
+        username: receta.username,
+        creadoEn: serverTimestamp(),
+      });
+      setSavedIds((prev) => new Set(prev).add(receta.id));
+    }
   };
 
   const resetForm = () => {
     setFormTitulo(""); setFormDesc(""); setFormCals("");
     setFormTiempo(""); setFormDif("fácil"); setFormMeal("almuerzo");
-    setFormImagenUri(null); setFormImagenUrl(null);
+    setFormImagenUri(null); setFormImagenUrl(null); setFormPublica(true);
   };
 
   const seleccionarImagen = () => {
@@ -179,30 +235,15 @@ export default function RecetasScreen() {
 
   const abrirGaleria = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permiso requerido", "Necesitamos acceso a tu galería.");
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.7,
-    });
+    if (status !== "granted") { Alert.alert("Permiso requerido", "Necesitamos acceso a tu galería."); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [4, 3], quality: 0.7 });
     if (!result.canceled) await procesarImagen(result.assets[0].uri);
   };
 
   const abrirCamara = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permiso requerido", "Necesitamos acceso a tu cámara.");
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.7,
-    });
+    if (status !== "granted") { Alert.alert("Permiso requerido", "Necesitamos acceso a tu cámara."); return; }
+    const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [4, 3], quality: 0.7 });
     if (!result.canceled) await procesarImagen(result.assets[0].uri);
   };
 
@@ -214,19 +255,25 @@ export default function RecetasScreen() {
       setFormImagenUrl(url);
     } catch (e) {
       console.error(e);
-      Alert.alert("Error", "No se pudo subir la imagen. Intenta de nuevo.");
+      Alert.alert("Error", "No se pudo subir la imagen.");
       setFormImagenUri(null);
-    } finally {
-      setUploadingImg(false);
-    }
+    } finally { setUploadingImg(false); }
   };
 
-  // Publica en "recipesUsuarios" — nunca toca "recipes" del planificador
   const publicarReceta = async () => {
     if (!userId) return;
     if (!formTitulo.trim()) { Alert.alert("Error", "El título es obligatorio."); return; }
     if (!formImagenUrl) { Alert.alert("Error", "Agrega una foto a tu receta."); return; }
     if (uploadingImg) { Alert.alert("Espera", "La imagen aún se está subiendo."); return; }
+
+    const titulo = formTitulo.trim();
+    const cals = Number(formCals);
+    const tiempo = Number(formTiempo);
+
+    if (titulo.length < 3) { Alert.alert("Título muy corto", "El título debe tener al menos 3 caracteres."); return; }
+    if (titulo.length > 60) { Alert.alert("Título muy largo", "El título no puede superar los 60 caracteres."); return; }
+    if (!formCals || isNaN(cals) || cals < 50 || cals > 3000) { Alert.alert("Calorías inválidas", "Las calorías deben estar entre 50 y 3000 kcal."); return; }
+    if (!formTiempo || isNaN(tiempo) || tiempo < 1 || tiempo > 720) { Alert.alert("Tiempo inválido", "El tiempo debe estar entre 1 y 720 minutos."); return; }
 
     setSaving(true);
     try {
@@ -235,24 +282,28 @@ export default function RecetasScreen() {
 
       const recetaData = {
         tipo: "custom",
-        titulo: formTitulo.trim(),
+        titulo,
         descripcion: formDesc.trim(),
         imagen: formImagenUrl,
-        calorias: Number(formCals) || 0,
-        tiempo: Number(formTiempo) || 0,
+        calorias: cals,
+        tiempo,
         dificultad: formDif,
         mealType: formMeal,
         userId,
         username,
         creadoEn: serverTimestamp(),
+        publica: formPublica,
       };
 
-      // Colección global del explorador
-      await addDoc(collection(db, "recipesUsuarios"), recetaData);
-      // Colección personal del usuario
-      await addDoc(collection(db, "users", userId, "recipes"), recetaData);
+      let globalId: string | null = null;
+      if (formPublica) {
+        const globalRef = await addDoc(collection(db, "public_recipes"), recetaData);
+        globalId = globalRef.id;
+      }
 
-      Alert.alert("Publicada", "Tu receta ya es visible para todos.");
+      await addDoc(collection(db, "users", userId, "recipes"), { ...recetaData, globalId });
+
+      Alert.alert("✓ Publicada", formPublica ? "Tu receta ya es visible para todos." : "Receta guardada como privada.");
       resetForm();
       setModalSubir(false);
       cargarExplorar();
@@ -263,45 +314,38 @@ export default function RecetasScreen() {
     } finally { setSaving(false); }
   };
 
-  // Elimina de "recipesUsuarios" y de la colección personal del usuario
   const eliminarReceta = (receta: RecetaUsuario) => {
-    Alert.alert("Eliminar", "¿Eliminar esta receta? Se eliminará para todos.", [
+    Alert.alert("Eliminar", "¿Eliminar esta receta?", [
       { text: "Cancelar", style: "cancel" },
       {
         text: "Eliminar", style: "destructive",
         onPress: async () => {
           if (!userId) return;
           try {
-            // Borrar de la colección personal
             await deleteDoc(doc(db, "users", userId, "recipes", receta.id));
-
-            // Buscar y borrar de recipesUsuarios
-            const q = query(
-              collection(db, "recipesUsuarios"),
-              orderBy("creadoEn", "desc")
-            );
-            const snap = await getDocs(q);
-            const globalDoc = snap.docs.find(
-              (d) => d.data().userId === userId && d.data().titulo === receta.titulo
-            );
-            if (globalDoc) await deleteDoc(doc(db, "recipesUsuarios", globalDoc.id));
-
+            if (receta.publica && receta.globalId) {
+              await deleteDoc(doc(db, "public_recipes", receta.globalId));
+            } else if (receta.publica) {
+              const q = query(collection(db, "public_recipes"), where("userId", "==", userId), where("titulo", "==", receta.titulo));
+              const snap = await getDocs(q);
+              for (const d of snap.docs) await deleteDoc(doc(db, "public_recipes", d.id));
+            }
             setMisRecetas((p) => p.filter((r) => r.id !== receta.id));
             setRecetasExplorar((p) => p.filter((r) => r.userId !== userId || r.titulo !== receta.titulo));
-          } catch (e) {
-            Alert.alert("Error", "No se pudo eliminar.");
-          }
+          } catch (e) { Alert.alert("Error", "No se pudo eliminar."); }
         },
       },
     ]);
   };
 
-  const recetasFiltradas = recetasExplorar.filter((r) => {
-    const matchBusqueda = r.titulo.toLowerCase().includes(busqueda.toLowerCase());
-    const matchTipo = filtroTipo === "todas" || r.mealType === filtroTipo;
-    const matchDif = filtroDif === "todas" || r.dificultad === filtroDif;
-    return matchBusqueda && matchTipo && matchDif;
-  });
+  const recetasFiltradas = useMemo(() => {
+    return recetasExplorar.filter((r) => {
+      const matchBusqueda = r.titulo.toLowerCase().includes(busqueda.toLowerCase());
+      const matchTipo = filtroTipo === "todas" || r.mealType === filtroTipo;
+      const matchDif = filtroDif === "todas" || r.dificultad === filtroDif;
+      return matchBusqueda && matchTipo && matchDif;
+    });
+  }, [recetasExplorar, busqueda, filtroTipo, filtroDif]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -322,11 +366,7 @@ export default function RecetasScreen() {
 
       <View style={styles.tabsRow}>
         {(["Explorar", "Mis recetas"] as TabType[]).map((tab) => (
-          <TouchableOpacity
-            key={tab}
-            style={[styles.tabItem, activeTab === tab && styles.tabItemActive]}
-            onPress={() => setActiveTab(tab)}
-          >
+          <TouchableOpacity key={tab} style={[styles.tabItem, activeTab === tab && styles.tabItemActive]} onPress={() => setActiveTab(tab)}>
             <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
           </TouchableOpacity>
         ))}
@@ -336,18 +376,8 @@ export default function RecetasScreen() {
         <ScrollView showsVerticalScrollIndicator={false} style={{ flex: 1 }}>
           <View style={styles.searchRow}>
             <Ionicons name="search-outline" size={18} color={COLORS.textMuted} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Buscar receta..."
-              placeholderTextColor={COLORS.textMuted}
-              value={busqueda}
-              onChangeText={setBusqueda}
-            />
-            {busqueda.length > 0 && (
-              <TouchableOpacity onPress={() => setBusqueda("")}>
-                <Ionicons name="close-circle" size={18} color={COLORS.textMuted} />
-              </TouchableOpacity>
-            )}
+            <TextInput style={styles.searchInput} placeholder="Buscar receta..." placeholderTextColor={COLORS.textMuted} value={busqueda} onChangeText={setBusqueda} />
+            {busqueda.length > 0 && <TouchableOpacity onPress={() => setBusqueda("")}><Ionicons name="close-circle" size={18} color={COLORS.textMuted} /></TouchableOpacity>}
           </View>
 
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterScroll}>
@@ -368,7 +398,16 @@ export default function RecetasScreen() {
             ))}
           </ScrollView>
 
-          {loadingExplorar ? (
+          {errorExplorar ? (
+            <View style={styles.centered}>
+              <Ionicons name="warning-outline" size={40} color={COLORS.error} style={{ opacity: 0.7 }} />
+              <Text style={[styles.emptyTitle, { color: COLORS.error }]}>Error al cargar</Text>
+              <Text style={styles.emptySubtitle}>{errorExplorar}</Text>
+              <TouchableOpacity style={styles.emptyBtn} onPress={cargarExplorar}>
+                <Text style={styles.emptyBtnText}>Reintentar</Text>
+              </TouchableOpacity>
+            </View>
+          ) : loadingExplorar ? (
             <View style={styles.centered}><ActivityIndicator size="large" color={COLORS.card} /></View>
           ) : recetasFiltradas.length === 0 ? (
             <View style={styles.centered}>
@@ -452,6 +491,7 @@ export default function RecetasScreen() {
         </View>
       )}
 
+      {/* ─── Modal Detalle ─────────────────────────────────────────────────── */}
       <Modal visible={!!recetaDetalle} animationType="slide" statusBarTranslucent>
         {recetaDetalle && (
           <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
@@ -464,9 +504,33 @@ export default function RecetasScreen() {
                     <Ionicons name="restaurant-outline" size={56} color={COLORS.card} />
                   </View>
                 )}
+                {/* Botón volver */}
                 <TouchableOpacity style={styles.detalleBackBtn} onPress={() => setRecetaDetalle(null)}>
                   <Ionicons name="chevron-back" size={24} color="#fff" />
                 </TouchableOpacity>
+                {/* Botones Me gusta y Guardar */}
+                <View style={styles.detalleActions}>
+                  <TouchableOpacity
+                    style={[styles.detalleActionBtn, likedIds.has(recetaDetalle.id) && styles.detalleActionBtnActive]}
+                    onPress={() => toggleLike(recetaDetalle)}
+                  >
+                    <Ionicons
+                      name={likedIds.has(recetaDetalle.id) ? "heart" : "heart-outline"}
+                      size={22}
+                      color={likedIds.has(recetaDetalle.id) ? "#E05050" : "#fff"}
+                    />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.detalleActionBtn, savedIds.has(recetaDetalle.id) && styles.detalleActionBtnActive]}
+                    onPress={() => toggleSave(recetaDetalle)}
+                  >
+                    <Ionicons
+                      name={savedIds.has(recetaDetalle.id) ? "bookmark" : "bookmark-outline"}
+                      size={22}
+                      color={savedIds.has(recetaDetalle.id) ? COLORS.card : "#fff"}
+                    />
+                  </TouchableOpacity>
+                </View>
               </View>
               <View style={styles.detalleContent}>
                 <Text style={styles.detalleNombre}>{recetaDetalle.titulo}</Text>
@@ -497,6 +561,7 @@ export default function RecetasScreen() {
         )}
       </Modal>
 
+      {/* ─── Modal Nueva Receta ──────────────────────────────────────────── */}
       <Modal visible={modalSubir} animationType="slide">
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }} edges={["top", "left", "right"]}>
           <View style={styles.modalHeader}>
@@ -577,7 +642,6 @@ export default function RecetasScreen() {
             >
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.publishBtnText}>Publicar receta</Text>}
             </TouchableOpacity>
-
             <View style={{ height: 40 }} />
           </ScrollView>
         </SafeAreaView>
@@ -675,7 +739,10 @@ const styles = StyleSheet.create({
 
   detalleImagen: { width: "100%", height: 260 },
   detalleImagenPlaceholder: { backgroundColor: "#F0EAE7", justifyContent: "center", alignItems: "center" },
-  detalleBackBtn: { position: "absolute", top: 16, left: 16, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 20, padding: 6 },
+  detalleBackBtn: { position: "absolute", top: 56, left: 16, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 20, padding: 6 },
+  detalleActions: { position: "absolute", top: 56, right: 16, flexDirection: "row", gap: 8 },
+  detalleActionBtn: { backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 20, padding: 8 },
+  detalleActionBtnActive: { backgroundColor: "rgba(255,255,255,0.25)" },
   detalleContent: { padding: 20 },
   detalleNombre: { fontSize: 24, fontWeight: "800", color: COLORS.text, marginBottom: 4 },
   detalleAutor: { fontSize: 13, color: COLORS.card, marginBottom: 10 },
@@ -706,7 +773,6 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: COLORS.card, borderColor: COLORS.card },
   chipText: { fontSize: 13, color: COLORS.textMuted, fontWeight: "500" },
   chipTextActive: { color: "#fff", fontWeight: "700" },
-
   publishBtn: { backgroundColor: COLORS.card, paddingVertical: 15, borderRadius: 14, alignItems: "center", marginTop: 8 },
   publishBtnText: { color: "#fff", fontWeight: "800", fontSize: 15 },
 });
