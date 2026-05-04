@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
+  Alert,
   FlatList,
   Image,
   Modal,
@@ -236,15 +237,36 @@ export default function Inventario() {
     setModalVisible(false);
   };
 
-  const handleDelete = async (item: Item) => {
-    const user = auth.currentUser;
-    if (!user) return;
+  const handleDeleteWithReason = (item: Item) => {
+    Alert.alert(
+    "Eliminar producto",
+    "¿Por qué deseas eliminarlo?",
+    [
+      { text: "Lo usé", onPress: () => eliminarItem(item, "usado") },
+      { text: "Se venció", onPress: () => eliminarItem(item, "vencido") },
+      { text: "Otro", onPress: () => eliminarItem(item, "otro") },
+      { text: "Cancelar", style: "cancel" },
+    ]
+  );
+};
 
-    await cancelNotifications(item.notificationIds || []);
+const eliminarItem = async (item: Item, razon: string) => {
+  const user = auth.currentUser;
+  if (!user) return;
 
-    const docRef = doc(db, "users", user.uid, "pantry_inventory", item.id);
-    await deleteDoc(docRef);
-  };
+  await cancelNotifications(item.notificationIds || []);
+
+  // (opcional) guardar historial
+  await addDoc(collection(db, "users", user.uid, "inventory_logs"), {
+    ...item,
+    eliminadoEn: new Date(),
+    razon,
+  });
+
+  // 🔥 AQUÍ VA TU CÓDIGO ORIGINAL
+  const docRef = doc(db, "users", user.uid, "pantry_inventory", item.id);
+  await deleteDoc(docRef);
+};
 
   const filteredItems = items.filter((item) => {
     const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());
@@ -302,7 +324,7 @@ export default function Inventario() {
             <Text style={styles.edit}>Editar</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => handleDelete(item)}>
+          <TouchableOpacity onPress={() => handleDeleteWithReason(item)}>
             <Text style={styles.delete}>Eliminar</Text>
           </TouchableOpacity>
         </View>
