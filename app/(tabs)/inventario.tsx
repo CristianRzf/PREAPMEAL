@@ -12,7 +12,7 @@ import {
 import { useEffect, useState } from "react";
 import {
   Alert,
-  FlatList,
+  ScrollView,
   Image,
   Modal,
   StyleSheet,
@@ -45,6 +45,12 @@ export default function Inventario() {
   const [editingItem, setEditingItem] = useState<Item | null>(null);
 
   const [items, setItems] = useState<Item[]>([]);
+
+  const [expandedSections, setExpandedSections] = useState({
+    Nevera: true,
+    Despensa: true,
+    Congelador: true,
+  })
 
   const [newName, setNewName] = useState("");
 
@@ -275,6 +281,12 @@ const eliminarItem = async (item: Item, razon: string) => {
     return matchSearch && matchFilter;
   });
 
+  const groupedItems = {
+  Nevera: filteredItems.filter((i) => i.location === "Nevera"),
+  Despensa: filteredItems.filter((i) => i.location === "Despensa"),
+  Congelador: filteredItems.filter((i) => i.location === "Congelador"),
+};
+
   const getColor = (days: number) => {
     if (days <= 0) return "#E63946";
     if (days <= 2) return "#E63946";
@@ -288,6 +300,12 @@ const eliminarItem = async (item: Item, razon: string) => {
     if (days <= 7) return "Por caducar";
     return "Fresco";
   };
+  const toggleSection = (section: "Nevera" | "Despensa" | "Congelador") => {
+  setExpandedSections((prev) => ({
+    ...prev,
+    [section]: !prev[section],
+  }));
+};
 
   const renderItem = ({ item }: { item: Item }) => (
     <View style={styles.itemCard}>
@@ -331,6 +349,7 @@ const eliminarItem = async (item: Item, razon: string) => {
       </View>
     </View>
   );
+  
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -429,13 +448,31 @@ const eliminarItem = async (item: Item, razon: string) => {
           ))}
         </View>
 
-        <FlatList
-          data={filteredItems}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 120 }}
-          showsVerticalScrollIndicator={false}
-        />
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {Object.entries(groupedItems).map(([section, data]) => {
+            if (data.length === 0) return null;
+
+            const isOpen =
+             expandedSections[section as keyof typeof expandedSections];
+
+            return (
+              <View key={section}>
+        
+                <TouchableOpacity onPress={() => toggleSection(section as any)}>
+                  <Text style={styles.sectionTitle}>
+                   {isOpen ? "▼" : "►"} {section}
+                  </Text>
+                </TouchableOpacity>
+
+        
+                {isOpen &&
+                 data.map((item) => (
+                  <View key={item.id}>{renderItem({ item })}</View>
+                 ))}
+               </View>
+            );
+         })}
+       </ScrollView>
 
         {/* MODAL */}
         <Modal visible={modalVisible} animationType="slide" transparent>
@@ -748,6 +785,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#888",
     marginTop: 2,
+  },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 10,
+    marginBottom: 5,
+    color: "#2c1810",
   },
 
   status: { fontSize: 12, fontWeight: "600" },
