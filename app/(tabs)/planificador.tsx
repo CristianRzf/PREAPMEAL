@@ -169,12 +169,12 @@ export default function Planificador() {
   useEffect(() => { if (userId) cargarPlan(); }, [weekDates, userId]);
   useEffect(() => { cargarRecetasFirestore(); }, []);
 
-  // ─── Carga recetas de public_recipes (sin índice compuesto) ──────────────
+  // ─── Carga recetas de recipes en planificador
   const cargarRecetasFirestore = async () => {
     setCargandoRecetas(true);
     try {
       const q = query(
-        collection(db, "public_recipes"),
+        collection(db, "recipes"),
         orderBy("creadoEn", "desc")
       );
       const snap = await getDocs(q);
