@@ -71,7 +71,9 @@ export default function Inventario() {
   const today = new Date();
   const diffTime = date.getTime() - today.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
 };
+
 
   useEffect(() => {
     const isExpoGo = Constants.appOwnership === "expo";
@@ -281,6 +283,11 @@ const eliminarItem = async (item: Item, razon: string) => {
     return matchSearch && matchFilter;
   });
 
+  const urgentItems = items.filter(
+  (i) => i.expirationDays <= 2 && i.expirationDays > 0
+);
+  
+
   const groupedItems = {
   Nevera: filteredItems.filter((i) => i.location === "Nevera"),
   Despensa: filteredItems.filter((i) => i.location === "Despensa"),
@@ -364,6 +371,12 @@ const eliminarItem = async (item: Item, razon: string) => {
             source={require("../../Logo Chef.png")}
             style={styles.headerLogo}
           />
+          {urgentItems.length > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{urgentItems.length}</Text>
+            </View>
+          )}
+              
         </View>
 
         <TouchableOpacity
@@ -408,17 +421,10 @@ const eliminarItem = async (item: Item, razon: string) => {
         </View>
 
         {/* ALERTA */}
-        {items.filter((i) => i.expirationDays <= 2 && i.expirationDays > 0)
-          .length > 0 && (
+        {urgentItems.length > 0 && (
           <View style={styles.alert}>
             <Text style={styles.alertText}>
-              ⚠️{" "}
-              {
-                items.filter(
-                  (i) => i.expirationDays <= 2 && i.expirationDays > 0,
-                ).length
-              }{" "}
-              productos vencen pronto
+              ⚠️ {urgentItems.length} productos vencen pronto
             </Text>
           </View>
         )}
@@ -651,6 +657,24 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 12,
   },
+  badge: {
+  position: "absolute",
+  top: -5,
+  right: -5,
+  backgroundColor: "#E63946",
+  borderRadius: 10,
+  minWidth: 18,
+  height: 18,
+  justifyContent: "center",
+  alignItems: "center",
+  paddingHorizontal: 4,
+},
+
+  badgeText: {
+  color: "#fff",
+  fontSize: 10,
+  fontWeight: "bold",
+},
 
   addButton: {
     backgroundColor: "#C4918A",
