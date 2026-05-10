@@ -109,7 +109,10 @@ function getWeekDates(offset: number): Date[] {
 }
 
 function dateKey(date: Date): string {
-  return date.toISOString().split("T")[0];
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+
+  
 }
 
 function calcDayNutrition(dayPlan: { [meal in MealType]?: SlotComida }) {
@@ -563,7 +566,7 @@ export default function Planificador() {
 
         <TouchableOpacity
           style={[styles.actionBtn, styles.actionBtnOutline]}
-          onPress={() => router.push("/(tabs)/dashboardNutricional")}
+          onPress={() => router.push("/(tabs)/?tab=nutricional" as any)}
         >
           <Text style={[styles.actionBtnText, { color: COLORS.text }]}>Ver panel nutricional</Text>
         </TouchableOpacity>
