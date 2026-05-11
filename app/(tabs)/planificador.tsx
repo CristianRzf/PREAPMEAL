@@ -1,4 +1,4 @@
-import { router, Stack, Tabs } from "expo-router";
+import { router, Stack } from "expo-router";
 import { getAuth } from "firebase/auth";
 import {
   addDoc,
@@ -11,7 +11,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  setDoc,
+  setDoc
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
@@ -78,9 +78,7 @@ const MEAL_LABELS: Record<MealType, string> = {
 
 const DIAS_CORTO = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MEALS: MealType[] = ["desayuno", "almuerzo", "cena", "snack"];
-const OBJETIVO_CALORIAS = 2000;
 
-// Paleta del diseño Figma
 const COLORS = {
   bg: "#F5F0ED",
   card: "#C4918A",
@@ -111,7 +109,10 @@ function getWeekDates(offset: number): Date[] {
 }
 
 function dateKey(date: Date): string {
-  return date.toISOString().split("T")[0];
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+
+
+  
 }
 
 function calcDayNutrition(dayPlan: { [meal in MealType]?: SlotComida }) {
@@ -129,10 +130,6 @@ function calcDayNutrition(dayPlan: { [meal in MealType]?: SlotComida }) {
   );
 }
 
-/**
- * Normaliza el campo tipo/mealType del seed a MealType[]
- * para compatibilidad con los filtros del planificador.
- */
 function normalizarTipo(data: any): MealType[] {
   if (Array.isArray(data.tipo) && data.tipo.length > 0) return data.tipo;
   if (data.mealType && typeof data.mealType === "string") {
@@ -150,7 +147,6 @@ export default function Planificador() {
   const [plan, setPlan] = useState<PlanSemana>({});
   const [loading, setLoading] = useState(false);
 
-  // ── Recetas desde Firestore (reemplaza RECETAS_DEMO) ──
   const [recetasFirestore, setRecetasFirestore] = useState<Receta[]>([]);
   const [cargandoRecetas, setCargandoRecetas] = useState(false);
 
@@ -159,13 +155,8 @@ export default function Planificador() {
   const [modalPorciones, setModalPorciones] = useState(false);
   const [modalMover, setModalMover] = useState(false);
 
-  const [slotActual, setSlotActual] = useState<{
-    meal: MealType;
-    fecha: string;
-  } | null>(null);
-  const [recetaSeleccionada, setRecetaSeleccionada] = useState<Receta | null>(
-    null,
-  );
+  const [slotActual, setSlotActual] = useState<{ meal: MealType; fecha: string } | null>(null);
+  const [recetaSeleccionada, setRecetaSeleccionada] = useState<Receta | null>(null);
   const [porciones, setPorciones] = useState(1);
   const [busqueda, setBusqueda] = useState("");
   const [filtroMeal, setFiltroMeal] = useState<MealType | "todas">("todas");
@@ -177,25 +168,18 @@ export default function Planificador() {
   const auth = getAuth();
   const userId = auth.currentUser?.uid;
 
-  useEffect(() => {
-    setWeekDates(getWeekDates(weekOffset));
-  }, [weekOffset]);
+  useEffect(() => { setWeekDates(getWeekDates(weekOffset)); }, [weekOffset]);
+  useEffect(() => { if (userId) cargarPlan(); }, [weekDates, userId]);
+  useEffect(() => { cargarRecetasFirestore(); }, []);
 
-  useEffect(() => {
-    if (userId) cargarPlan();
-  }, [weekDates, userId]);
-
-  // Carga recetas de Firestore al montar el componente
-  useEffect(() => {
-    cargarRecetasFirestore();
-  }, []);
-
-  // ─── Firestore — Recetas ──────────────────────────────────────────────────
-
+  // ─── Carga recetas de recipes en planificador
   const cargarRecetasFirestore = async () => {
     setCargandoRecetas(true);
     try {
-      const q = query(collection(db, "recipes"), orderBy("creadoEn", "desc"));
+      const q = query(
+        collection(db, "recipes"),
+        orderBy("creadoEn", "desc")
+      );
       const snap = await getDocs(q);
       const lista: Receta[] = snap.docs.map((d) => {
         const data = d.data();
@@ -210,9 +194,7 @@ export default function Planificador() {
           tiempo: data.tiempo || 30,
           dificultad: data.dificultad || "fácil",
           tipo: normalizarTipo(data),
-          ingredientes: Array.isArray(data.ingredientes)
-            ? data.ingredientes
-            : [],
+          ingredientes: Array.isArray(data.ingredientes) ? data.ingredientes : [],
         };
       });
       setRecetasFirestore(lista);
@@ -245,11 +227,7 @@ export default function Planificador() {
     }
   };
 
-  const guardarSlot = async (
-    fecha: string,
-    meal: MealType,
-    slot: SlotComida,
-  ) => {
+  const guardarSlot = async (fecha: string, meal: MealType, slot: SlotComida) => {
     if (!userId) return;
     const ref = doc(db, "users", userId, "plan", fecha);
     const existing = plan[fecha] || {};
@@ -312,8 +290,7 @@ export default function Planificador() {
     Alert.alert("Eliminar receta", "¿Estás seguro?", [
       { text: "Cancelar", style: "cancel" },
       {
-        text: "Eliminar",
-        style: "destructive",
+        text: "Eliminar", style: "destructive",
         onPress: async () => {
           if (!slotActual) return;
           await eliminarSlot(slotActual.fecha, slotActual.meal);
@@ -335,10 +312,7 @@ export default function Planificador() {
     if (!slotActual) return;
     const slot = plan[slotActual.fecha]?.[slotActual.meal];
     if (!slot) return;
-    await guardarSlot(slotActual.fecha, slotActual.meal, {
-      ...slot,
-      porciones,
-    });
+    await guardarSlot(slotActual.fecha, slotActual.meal, { ...slot, porciones });
     setModalPorciones(false);
   };
 
@@ -375,7 +349,6 @@ export default function Planificador() {
     }
   };
 
-  // generarListaCompras usa recetasFirestore en lugar de RECETAS_DEMO
   const generarListaCompras = async () => {
     const todasRecetas = Object.values(plan).flatMap(
       (day) => Object.values(day || {}).filter(Boolean) as SlotComida[],
@@ -384,16 +357,7 @@ export default function Planificador() {
     if (!userId) return;
     setLoading(true);
     try {
-      const consolidado: Record<
-        string,
-        {
-          nombre: string;
-          cantidad: number;
-          unidad: string;
-          precio: number;
-          recetas: string[];
-        }
-      > = {};
+      const consolidado: Record<string, { nombre: string; cantidad: number; unidad: string; precio: number; recetas: string[] }> = {};
       for (const slot of todasRecetas) {
         const receta = recetasFirestore.find((r) => r.id === slot.recetaId);
         if (!receta) continue;
@@ -406,30 +370,20 @@ export default function Planificador() {
               consolidado[key].recetas.push(slot.nombre);
           } else {
             consolidado[key] = {
-              nombre: ing.nombre,
-              cantidad: ing.cantidad * slot.porciones,
-              unidad: ing.unidad,
-              precio: ing.precio * slot.porciones,
+              nombre: ing.nombre, cantidad: ing.cantidad * slot.porciones,
+              unidad: ing.unidad, precio: ing.precio * slot.porciones,
               recetas: [slot.nombre],
             };
           }
         }
       }
-      const items = Object.values(consolidado).map((ing) => ({
-        ...ing,
-        comprado: false,
-      }));
+      const items = Object.values(consolidado).map((ing) => ({ ...ing, comprado: false }));
       await addDoc(collection(db, "users", userId, "listas"), {
-        items,
-        creadoEn: serverTimestamp(),
-        completada: false,
+        items, creadoEn: serverTimestamp(), completada: false,
         totalEstimado: items.reduce((a, i) => a + i.precio, 0),
       });
       Alert.alert("Lista creada", "Tu lista de compras fue generada.", [
-        {
-          text: "Ver lista",
-          onPress: () => router.push("/(tabs)/listadeCompras"),
-        },
+        { text: "Ver lista", onPress: () => router.push("/(tabs)/listadeCompras") },
         { text: "OK" },
       ]);
     } catch (e) {
@@ -441,18 +395,14 @@ export default function Planificador() {
 
   // ─── Datos computados ──────────────────────────────────────────────────────
 
-  // Filtra sobre recetasFirestore en lugar de RECETAS_DEMO
   const recetasFiltradas = recetasFirestore.filter((r) => {
-    const matchBusqueda = r.nombre
-      .toLowerCase()
-      .includes(busqueda.toLowerCase());
+    const matchBusqueda = r.nombre.toLowerCase().includes(busqueda.toLowerCase());
     const matchMeal = filtroMeal === "todas" || r.tipo.includes(filtroMeal);
     return matchBusqueda && matchMeal;
   });
 
   const totalRecetas = Object.values(plan).reduce(
-    (acc, day) => acc + Object.values(day || {}).filter(Boolean).length,
-    0,
+    (acc, day) => acc + Object.values(day || {}).filter(Boolean).length, 0,
   );
 
   const resumenSemanal = weekDates.reduce(
@@ -474,9 +424,7 @@ export default function Planificador() {
   const proteinasSemana = Math.round(resumenSemanal.proteinas);
   const recetasUnicas = new Set(
     Object.values(plan).flatMap((day) =>
-      Object.values(day || {})
-        .filter(Boolean)
-        .map((s) => (s as SlotComida).recetaId),
+      Object.values(day || {}).filter(Boolean).map((s) => (s as SlotComida).recetaId),
     ),
   ).size;
 
@@ -488,23 +436,18 @@ export default function Planificador() {
   return (
     <SafeAreaView style={styles.safeArea}>
       <Stack.Screen options={{ headerShown: false }} />
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.scroll}
-      >
-        {/* ── HEADER (igual al Home) ── */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+
+        {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.headerTitle}>Planificador</Text>
             <Text style={styles.headerSub}>Organiza tu semana</Text>
           </View>
-          <Image
-            source={require("../../Logo Chef.png")}
-            style={styles.headerLogo}
-          />
+          <Image source={require("../../Logo Chef.png")} style={styles.headerLogo} />
         </View>
 
-        {/* ── Stats cards — 1 fila de 4 ── */}
+        {/* Stats */}
         <View style={styles.statsGrid}>
           <View style={[styles.statCard, { backgroundColor: COLORS.card }]}>
             <Text style={styles.statNumber}>{totalRecetas}</Text>
@@ -524,9 +467,8 @@ export default function Planificador() {
           </View>
         </View>
 
-        {/* ── Tabla semanal ── */}
+        {/* Tabla semanal */}
         <View style={styles.tableCard}>
-          {/* Encabezado de tabla */}
           <View style={styles.tableHeaderRow}>
             <Text style={styles.tableHeaderCell}>Semana actual</Text>
             <View style={styles.tableHeaderDays}>
@@ -537,26 +479,13 @@ export default function Planificador() {
                 return (
                   <TouchableOpacity
                     key={key}
-                    style={[
-                      styles.dayHeaderBtn,
-                      isSelected && styles.dayHeaderBtnActive,
-                    ]}
+                    style={[styles.dayHeaderBtn, isSelected && styles.dayHeaderBtnActive]}
                     onPress={() => setSelectedDay(date)}
                   >
-                    <Text
-                      style={[
-                        styles.dayHeaderLabel,
-                        isSelected && styles.dayHeaderLabelActive,
-                      ]}
-                    >
+                    <Text style={[styles.dayHeaderLabel, isSelected && styles.dayHeaderLabelActive]}>
                       {DIAS_CORTO[date.getDay()]}
                     </Text>
-                    <Text
-                      style={[
-                        styles.dayHeaderNum,
-                        isSelected && styles.dayHeaderNumActive,
-                      ]}
-                    >
+                    <Text style={[styles.dayHeaderNum, isSelected && styles.dayHeaderNumActive]}>
                       {date.getDate()}
                     </Text>
                     {isToday && <View style={styles.todayDot} />}
@@ -566,54 +495,26 @@ export default function Planificador() {
             </View>
           </View>
 
-          {/* Navegación semana */}
           <View style={styles.weekNavRow}>
-            <TouchableOpacity
-              onPress={() => setWeekOffset((w) => w - 1)}
-              style={styles.weekNavBtn}
-            >
+            <TouchableOpacity onPress={() => setWeekOffset((w) => w - 1)} style={styles.weekNavBtn}>
               <Text style={styles.weekNavArrow}>{"<"}</Text>
             </TouchableOpacity>
             <Text style={styles.weekNavLabel}>
-              {weekDates[0]?.toLocaleDateString("es-CO", {
-                day: "numeric",
-                month: "short",
-              })}
+              {weekDates[0]?.toLocaleDateString("es-CO", { day: "numeric", month: "short" })}
               {" – "}
-              {weekDates[6]?.toLocaleDateString("es-CO", {
-                day: "numeric",
-                month: "short",
-                year: "numeric",
-              })}
+              {weekDates[6]?.toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" })}
             </Text>
-            <TouchableOpacity
-              onPress={() => setWeekOffset((w) => w + 1)}
-              style={styles.weekNavBtn}
-            >
+            <TouchableOpacity onPress={() => setWeekOffset((w) => w + 1)} style={styles.weekNavBtn}>
               <Text style={styles.weekNavArrow}>{">"}</Text>
             </TouchableOpacity>
           </View>
 
-          {/* Filas de comidas */}
           {MEALS.map((meal, mealIdx) => (
-            <View
-              key={meal}
-              style={[
-                styles.mealRow,
-                mealIdx < MEALS.length - 1 && styles.mealRowBorder,
-              ]}
-            >
-              {/* Label comida */}
+            <View key={meal} style={[styles.mealRow, mealIdx < MEALS.length - 1 && styles.mealRowBorder]}>
               <View style={styles.mealLabelCell}>
                 <Text style={styles.mealLabelText}>{MEAL_LABELS[meal]}</Text>
               </View>
-
-              {/* Celdas por día */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                style={styles.dayCellsScroll}
-              >
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.dayCellsScroll}>
                 <View style={styles.dayCellsRow}>
                   {weekDates.map((date) => {
                     const key = dateKey(date);
@@ -622,52 +523,23 @@ export default function Planificador() {
                     const todayKey = dateKey(new Date());
                     const isPast = key < todayKey;
                     return (
-                      <View
-                        key={key}
-                        style={[
-                          styles.dayCell,
-                          isSelected && styles.dayCellSelected,
-                          isPast && styles.dayCellPast,
-                        ]}
-                      >
+                      <View key={key} style={[styles.dayCell, isSelected && styles.dayCellSelected, isPast && styles.dayCellPast]}>
                         {slot ? (
                           <TouchableOpacity
                             style={styles.slotFilledCell}
                             onPress={() => !isPast && abrirOpciones(key, meal)}
                             activeOpacity={isPast ? 1 : 0.7}
                           >
-                            <Image
-                              source={{ uri: slot.imagen }}
-                              style={[
-                                styles.slotThumb,
-                                isPast && { opacity: 0.4 },
-                              ]}
-                            />
-                            <Text
-                              style={[
-                                styles.slotCellName,
-                                isPast && { color: "#bbb" },
-                              ]}
-                              numberOfLines={1}
-                            >
+                            <Image source={{ uri: slot.imagen }} style={[styles.slotThumb, isPast && { opacity: 0.4 }]} />
+                            <Text style={[styles.slotCellName, isPast && { color: "#bbb" }]} numberOfLines={1}>
                               {slot.nombre}
                             </Text>
-                            <Text style={styles.slotCellCals}>
-                              {slot.calorias * slot.porciones} cal
-                            </Text>
+                            <Text style={styles.slotCellCals}>{slot.calorias * slot.porciones} cal</Text>
                           </TouchableOpacity>
                         ) : isPast ? (
-                          <View
-                            style={[
-                              styles.slotEmptyCell,
-                              { borderColor: "#ddd", opacity: 0.35 },
-                            ]}
-                          />
+                          <View style={[styles.slotEmptyCell, { borderColor: "#ddd", opacity: 0.35 }]} />
                         ) : (
-                          <TouchableOpacity
-                            style={styles.slotEmptyCell}
-                            onPress={() => abrirAgregar(key, meal)}
-                          >
+                          <TouchableOpacity style={styles.slotEmptyCell} onPress={() => abrirAgregar(key, meal)}>
                             <Text style={styles.slotEmptyPlus}>+</Text>
                           </TouchableOpacity>
                         )}
@@ -680,35 +552,29 @@ export default function Planificador() {
           ))}
         </View>
 
-        {/* ── Botones de acción inferiores ── */}
+        {/* Botones acción */}
         <TouchableOpacity
-          style={[
-            styles.actionBtn,
-            totalRecetas === 0 && styles.actionBtnDisabled,
-          ]}
+          style={[styles.actionBtn, totalRecetas === 0 && styles.actionBtnDisabled]}
           onPress={generarListaCompras}
           disabled={loading || totalRecetas === 0}
         >
-          {loading ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.actionBtnText}>Generar lista de compras</Text>
-          )}
+          {loading
+            ? <ActivityIndicator color="#fff" size="small" />
+            : <Text style={styles.actionBtnText}>Generar lista de compras</Text>
+          }
         </TouchableOpacity>
 
         <TouchableOpacity
           style={[styles.actionBtn, styles.actionBtnOutline]}
-          onPress={() => router.push("/(tabs)?tab=nutricion")}
+          onPress={() => router.push("/(tabs)/?tab=nutricional" as any)}
         >
-          <Text style={[styles.actionBtnText, { color: COLORS.text }]}>
-            Ver panel nutricional
-          </Text>
+          <Text style={[styles.actionBtnText, { color: COLORS.text }]}>Ver panel nutricional</Text>
         </TouchableOpacity>
 
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      {/* ─── Modal Agregar Receta ─────────────────────────────────────────── */}
+      {/* Modal Agregar Receta */}
       <Modal visible={modalAgregar} animationType="slide" statusBarTranslucent>
         <SafeAreaView style={styles.modalContainer}>
           <View style={styles.modalHeader}>
@@ -728,100 +594,54 @@ export default function Planificador() {
             />
           </View>
 
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.filterRow}
-          >
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.filterRow}>
             {(["todas", ...MEALS] as (MealType | "todas")[]).map((f) => (
               <TouchableOpacity
                 key={f}
-                style={[
-                  styles.filterChip,
-                  filtroMeal === f && styles.filterChipActive,
-                ]}
+                style={[styles.filterChip, filtroMeal === f && styles.filterChipActive]}
                 onPress={() => setFiltroMeal(f)}
               >
-                <Text
-                  style={[
-                    styles.filterChipText,
-                    filtroMeal === f && styles.filterChipTextActive,
-                  ]}
-                >
+                <Text style={[styles.filterChipText, filtroMeal === f && styles.filterChipTextActive]}>
                   {f === "todas" ? "Todas" : MEAL_LABELS[f as MealType]}
                 </Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
 
-          {/* Loading mientras cargan las recetas de Firestore */}
           {cargandoRecetas ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={COLORS.card} />
               <Text style={styles.loadingText}>Cargando recetas...</Text>
             </View>
           ) : recetaSeleccionada ? (
-            <ScrollView
-              contentContainerStyle={styles.porcionesView}
-              showsVerticalScrollIndicator={false}
-            >
-              <Image
-                source={{ uri: recetaSeleccionada.imagen }}
-                style={styles.recetaImagenGrande}
-              />
-              <Text style={styles.recetaNombreGrande}>
-                {recetaSeleccionada.nombre}
-              </Text>
+            <ScrollView contentContainerStyle={styles.porcionesView} showsVerticalScrollIndicator={false}>
+              <Image source={{ uri: recetaSeleccionada.imagen }} style={styles.recetaImagenGrande} />
+              <Text style={styles.recetaNombreGrande}>{recetaSeleccionada.nombre}</Text>
 
               <Text style={styles.porcionesLabel}>Número de porciones</Text>
               <View style={styles.porcionesControl}>
-                <TouchableOpacity
-                  style={styles.porcionBtn}
-                  onPress={() => setPorciones((p) => Math.max(1, p - 1))}
-                >
+                <TouchableOpacity style={styles.porcionBtn} onPress={() => setPorciones((p) => Math.max(1, p - 1))}>
                   <Text style={styles.porcionBtnText}>-</Text>
                 </TouchableOpacity>
                 <Text style={styles.porcionNum}>{porciones}</Text>
-                <TouchableOpacity
-                  style={styles.porcionBtn}
-                  onPress={() => setPorciones((p) => Math.min(10, p + 1))}
-                >
+                <TouchableOpacity style={styles.porcionBtn} onPress={() => setPorciones((p) => Math.min(10, p + 1))}>
                   <Text style={styles.porcionBtnText}>+</Text>
                 </TouchableOpacity>
               </View>
 
               <View style={styles.nutritionPreview}>
                 <Text style={styles.nutritionPreviewTitle}>
-                  Preview nutricional ({porciones} porción
-                  {porciones > 1 ? "es" : ""})
+                  Preview nutricional ({porciones} porción{porciones > 1 ? "es" : ""})
                 </Text>
                 <View style={styles.macrosRow}>
                   {[
-                    {
-                      label: "kcal",
-                      value: recetaSeleccionada.calorias * porciones,
-                    },
-                    {
-                      label: "proteínas",
-                      value: recetaSeleccionada.proteinas * porciones,
-                      unit: "g",
-                    },
-                    {
-                      label: "carbos",
-                      value: recetaSeleccionada.carbohidratos * porciones,
-                      unit: "g",
-                    },
-                    {
-                      label: "grasas",
-                      value: recetaSeleccionada.grasas * porciones,
-                      unit: "g",
-                    },
+                    { label: "kcal", value: recetaSeleccionada.calorias * porciones },
+                    { label: "proteínas", value: recetaSeleccionada.proteinas * porciones, unit: "g" },
+                    { label: "carbos", value: recetaSeleccionada.carbohidratos * porciones, unit: "g" },
+                    { label: "grasas", value: recetaSeleccionada.grasas * porciones, unit: "g" },
                   ].map((m) => (
                     <View key={m.label} style={styles.macroItem}>
-                      <Text style={styles.macroValue}>
-                        {m.value}
-                        {m.unit ?? ""}
-                      </Text>
+                      <Text style={styles.macroValue}>{m.value}{m.unit ?? ""}</Text>
                       <Text style={styles.macroLabel}>{m.label}</Text>
                     </View>
                   ))}
@@ -829,16 +649,10 @@ export default function Planificador() {
               </View>
 
               <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.btnSecondary}
-                  onPress={() => setRecetaSeleccionada(null)}
-                >
+                <TouchableOpacity style={styles.btnSecondary} onPress={() => setRecetaSeleccionada(null)}>
                   <Text style={styles.btnSecondaryText}>Cambiar</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.btnPrimary}
-                  onPress={confirmarAgregar}
-                >
+                <TouchableOpacity style={styles.btnPrimary} onPress={confirmarAgregar}>
                   <Text style={styles.btnPrimaryText}>Confirmar</Text>
                 </TouchableOpacity>
               </View>
@@ -849,25 +663,21 @@ export default function Planificador() {
               keyExtractor={(r) => r.id}
               contentContainerStyle={{ padding: 16, gap: 10 }}
               ListEmptyComponent={
-                <Text style={styles.emptyText}>No se encontraron recetas</Text>
+                <Text style={styles.emptyText}>
+                  {recetasFirestore.length === 0
+                    ? "No hay recetas públicas aún. ¡Publica una desde Recetas!"
+                    : "No se encontraron recetas"}
+                </Text>
               }
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.recetaCard}
-                  onPress={() => {
-                    setRecetaSeleccionada(item);
-                    setPorciones(1);
-                  }}
+                  onPress={() => { setRecetaSeleccionada(item); setPorciones(1); }}
                 >
-                  <Image
-                    source={{ uri: item.imagen }}
-                    style={styles.recetaCardImage}
-                  />
+                  <Image source={{ uri: item.imagen }} style={styles.recetaCardImage} />
                   <View style={styles.recetaCardInfo}>
                     <Text style={styles.recetaCardName}>{item.nombre}</Text>
-                    <Text style={styles.recetaCardCals}>
-                      {item.calorias} kcal - {item.tiempo} min
-                    </Text>
+                    <Text style={styles.recetaCardCals}>{item.calorias} kcal - {item.tiempo} min</Text>
                     <Text style={styles.recetaCardDif}>{item.dificultad}</Text>
                   </View>
                 </TouchableOpacity>
@@ -877,79 +687,50 @@ export default function Planificador() {
         </SafeAreaView>
       </Modal>
 
-      {/* ─── Modal Opciones ───────────────────────────────────────────────── */}
+      {/* Modal Opciones */}
       <Modal visible={modalOpciones} transparent animationType="fade">
-        <TouchableOpacity
-          style={styles.overlay}
-          onPress={() => setModalOpciones(false)}
-        >
+        <TouchableOpacity style={styles.overlay} onPress={() => setModalOpciones(false)}>
           <View style={styles.optionsModal}>
             <Text style={styles.optionsTitle}>Opciones</Text>
             {[
               { label: "Cambiar porciones", onPress: handleCambiarPorciones },
               {
-                label: "Reemplazar receta",
-                onPress: () => {
+                label: "Reemplazar receta", onPress: () => {
                   setModalOpciones(false);
-                  setBusqueda("");
-                  setRecetaSeleccionada(null);
-                  setPorciones(1);
+                  setBusqueda(""); setRecetaSeleccionada(null); setPorciones(1);
                   setModalAgregar(true);
                 },
               },
               { label: "Mover a otro slot", onPress: handleMover },
               { label: "Eliminar", onPress: handleEliminar, danger: true },
             ].map((opt) => (
-              <TouchableOpacity
-                key={opt.label}
-                style={styles.optionItem}
-                onPress={opt.onPress}
-              >
-                <Text
-                  style={[
-                    styles.optionLabel,
-                    opt.danger && { color: COLORS.danger },
-                  ]}
-                >
-                  {opt.label}
-                </Text>
+              <TouchableOpacity key={opt.label} style={styles.optionItem} onPress={opt.onPress}>
+                <Text style={[styles.optionLabel, opt.danger && { color: COLORS.danger }]}>{opt.label}</Text>
               </TouchableOpacity>
             ))}
           </View>
         </TouchableOpacity>
       </Modal>
 
-      {/* ─── Modal Cambiar Porciones ──────────────────────────────────────── */}
+      {/* Modal Porciones */}
       <Modal visible={modalPorciones} transparent animationType="slide">
         <View style={styles.overlay}>
           <View style={styles.porcionesModal}>
             <Text style={styles.modalTitle}>Cambiar porciones</Text>
             <View style={styles.porcionesControl}>
-              <TouchableOpacity
-                style={styles.porcionBtn}
-                onPress={() => setPorciones((p) => Math.max(1, p - 1))}
-              >
+              <TouchableOpacity style={styles.porcionBtn} onPress={() => setPorciones((p) => Math.max(1, p - 1))}>
                 <Text style={styles.porcionBtnText}>-</Text>
               </TouchableOpacity>
               <Text style={styles.porcionNum}>{porciones}</Text>
-              <TouchableOpacity
-                style={styles.porcionBtn}
-                onPress={() => setPorciones((p) => Math.min(10, p + 1))}
-              >
+              <TouchableOpacity style={styles.porcionBtn} onPress={() => setPorciones((p) => Math.min(10, p + 1))}>
                 <Text style={styles.porcionBtnText}>+</Text>
               </TouchableOpacity>
             </View>
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.btnSecondary}
-                onPress={() => setModalPorciones(false)}
-              >
+              <TouchableOpacity style={styles.btnSecondary} onPress={() => setModalPorciones(false)}>
                 <Text style={styles.btnSecondaryText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.btnPrimary}
-                onPress={confirmarCambiarPorciones}
-              >
+              <TouchableOpacity style={styles.btnPrimary} onPress={confirmarCambiarPorciones}>
                 <Text style={styles.btnPrimaryText}>Guardar</Text>
               </TouchableOpacity>
             </View>
@@ -957,17 +738,13 @@ export default function Planificador() {
         </View>
       </Modal>
 
-      {/* ─── Modal Mover ──────────────────────────────────────────────────── */}
+      {/* Modal Mover */}
       <Modal visible={modalMover} transparent animationType="slide">
         <View style={styles.overlay}>
           <View style={styles.moverModal}>
             <Text style={styles.modalTitle}>Mover a...</Text>
             <Text style={styles.moverLabel}>Día destino</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              style={{ marginBottom: 12 }}
-            >
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
               {weekDates
                 .filter((date) => dateKey(date) >= dateKey(new Date()))
                 .map((date) => {
@@ -976,27 +753,13 @@ export default function Planificador() {
                   return (
                     <TouchableOpacity
                       key={key}
-                      style={[
-                        styles.dayHeaderBtn,
-                        isSel && styles.dayHeaderBtnActive,
-                        { marginRight: 8 },
-                      ]}
+                      style={[styles.dayHeaderBtn, isSel && styles.dayHeaderBtnActive, { marginRight: 8 }]}
                       onPress={() => setDiaDestino(key)}
                     >
-                      <Text
-                        style={[
-                          styles.dayHeaderLabel,
-                          isSel && styles.dayHeaderLabelActive,
-                        ]}
-                      >
+                      <Text style={[styles.dayHeaderLabel, isSel && styles.dayHeaderLabelActive]}>
                         {DIAS_CORTO[date.getDay()]}
                       </Text>
-                      <Text
-                        style={[
-                          styles.dayHeaderNum,
-                          isSel && styles.dayHeaderNumActive,
-                        ]}
-                      >
+                      <Text style={[styles.dayHeaderNum, isSel && styles.dayHeaderNumActive]}>
                         {date.getDate()}
                       </Text>
                     </TouchableOpacity>
@@ -1008,34 +771,20 @@ export default function Planificador() {
               {MEALS.map((m) => (
                 <TouchableOpacity
                   key={m}
-                  style={[
-                    styles.filterChip,
-                    mealDestino === m && styles.filterChipActive,
-                  ]}
+                  style={[styles.filterChip, mealDestino === m && styles.filterChipActive]}
                   onPress={() => setMealDestino(m)}
                 >
-                  <Text
-                    style={[
-                      styles.filterChipText,
-                      mealDestino === m && styles.filterChipTextActive,
-                    ]}
-                  >
+                  <Text style={[styles.filterChipText, mealDestino === m && styles.filterChipTextActive]}>
                     {MEAL_LABELS[m]}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
             <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.btnSecondary}
-                onPress={() => setModalMover(false)}
-              >
+              <TouchableOpacity style={styles.btnSecondary} onPress={() => setModalMover(false)}>
                 <Text style={styles.btnSecondaryText}>Cancelar</Text>
               </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.btnPrimary}
-                onPress={confirmarMover}
-              >
+              <TouchableOpacity style={styles.btnPrimary} onPress={confirmarMover}>
                 <Text style={styles.btnPrimaryText}>Mover</Text>
               </TouchableOpacity>
             </View>
@@ -1052,442 +801,110 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: COLORS.bg },
   scroll: { paddingBottom: 20 },
 
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 16,
-  },
-  headerTitle: {
-    fontSize: 26,
-    fontWeight: "700",
-    color: COLORS.text,
-    marginTop: 2,
-  },
-  headerSub: {
-    fontSize: 12,
-    color: "#aaa",
-    marginTop: 2,
-  },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16 },
+  headerTitle: { fontSize: 26, fontWeight: "700", color: COLORS.text, marginTop: 2 },
+  headerSub: { fontSize: 12, color: "#aaa", marginTop: 2 },
   headerRight: { alignItems: "center", gap: 8 },
   headerLogo: { width: 52, height: 52, borderRadius: 12 },
-  logoutBtn: {
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 8,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
-  },
 
-  statsGrid: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    gap: 6,
-    marginBottom: 16,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    alignItems: "center",
-  },
-  statNumber: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: COLORS.textLight,
-    lineHeight: 22,
-  },
-  statLabel: {
-    fontSize: 9,
-    color: COLORS.textLight,
-    fontWeight: "500",
-    marginTop: 2,
-    opacity: 0.9,
-    textAlign: "center",
-  },
+  statsGrid: { flexDirection: "row", paddingHorizontal: 16, gap: 6, marginBottom: 16 },
+  statCard: { flex: 1, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 4, alignItems: "center" },
+  statNumber: { fontSize: 18, fontWeight: "700", color: COLORS.textLight, lineHeight: 22 },
+  statLabel: { fontSize: 9, color: COLORS.textLight, fontWeight: "500", marginTop: 2, opacity: 0.9, textAlign: "center" },
 
-  tableCard: {
-    marginHorizontal: 16,
-    backgroundColor: COLORS.surface,
-    borderRadius: 16,
-    overflow: "hidden",
-    marginBottom: 16,
-    elevation: 2,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-  },
-  tableHeaderRow: {
-    backgroundColor: COLORS.tableHeader,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.tableBorder,
-  },
-  tableHeaderCell: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: COLORS.textMuted,
-    marginBottom: 8,
-  },
-  tableHeaderDays: {
-    flexDirection: "row",
-    gap: 4,
-  },
-  dayHeaderBtn: {
-    flex: 1,
-    alignItems: "center",
-    paddingVertical: 6,
-    borderRadius: 10,
-    minWidth: 38,
-  },
-  dayHeaderBtnActive: {
-    backgroundColor: COLORS.card,
-  },
-  dayHeaderLabel: {
-    fontSize: 10,
-    color: COLORS.textMuted,
-    fontWeight: "500",
-  },
+  tableCard: { marginHorizontal: 16, backgroundColor: COLORS.surface, borderRadius: 16, overflow: "hidden", marginBottom: 16, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.08, shadowRadius: 4 },
+  tableHeaderRow: { backgroundColor: COLORS.tableHeader, paddingHorizontal: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: COLORS.tableBorder },
+  tableHeaderCell: { fontSize: 13, fontWeight: "600", color: COLORS.textMuted, marginBottom: 8 },
+  tableHeaderDays: { flexDirection: "row", gap: 4 },
+  dayHeaderBtn: { flex: 1, alignItems: "center", paddingVertical: 6, borderRadius: 10, minWidth: 38 },
+  dayHeaderBtnActive: { backgroundColor: COLORS.card },
+  dayHeaderLabel: { fontSize: 10, color: COLORS.textMuted, fontWeight: "500" },
   dayHeaderLabelActive: { color: "#fff" },
-  dayHeaderNum: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: COLORS.text,
-  },
+  dayHeaderNum: { fontSize: 15, fontWeight: "700", color: COLORS.text },
   dayHeaderNumActive: { color: "#fff" },
-  todayDot: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: COLORS.card,
-    marginTop: 2,
-  },
-  weekNavRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.tableBorder,
-  },
+  todayDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.card, marginTop: 2 },
+
+  weekNavRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: COLORS.tableBorder },
   weekNavBtn: { padding: 4 },
   weekNavArrow: { fontSize: 22, color: COLORS.textMuted, fontWeight: "300" },
   weekNavLabel: { fontSize: 12, color: COLORS.textMuted, fontWeight: "500" },
 
-  mealRow: {
-    flexDirection: "row",
-    minHeight: 64,
-  },
-  mealRowBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.tableBorder,
-  },
-  mealLabelCell: {
-    width: 72,
-    justifyContent: "center",
-    paddingLeft: 12,
-    paddingRight: 6,
-    borderRightWidth: 1,
-    borderRightColor: COLORS.tableBorder,
-  },
-  mealLabelText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: COLORS.text,
-  },
+  mealRow: { flexDirection: "row", minHeight: 64 },
+  mealRowBorder: { borderBottomWidth: 1, borderBottomColor: COLORS.tableBorder },
+  mealLabelCell: { width: 72, justifyContent: "center", paddingLeft: 12, paddingRight: 6, borderRightWidth: 1, borderRightColor: COLORS.tableBorder },
+  mealLabelText: { fontSize: 12, fontWeight: "600", color: COLORS.text },
   dayCellsScroll: { flex: 1 },
   dayCellsRow: { flexDirection: "row" },
-  dayCell: {
-    width: 52,
-    minHeight: 64,
-    padding: 4,
-    borderRightWidth: 1,
-    borderRightColor: COLORS.tableBorder,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  dayCellSelected: {
-    backgroundColor: "#FDF7F5",
-  },
-  dayCellPast: {
-    backgroundColor: "#F9F9F9",
-  },
-  slotFilledCell: {
-    width: 44,
-    alignItems: "center",
-    gap: 2,
-  },
-  slotThumb: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
-  },
-  slotCellName: {
-    fontSize: 9,
-    color: COLORS.text,
-    fontWeight: "600",
-    textAlign: "center",
-    width: 44,
-  },
-  slotCellCals: {
-    fontSize: 8,
-    color: COLORS.textMuted,
-    textAlign: "center",
-  },
-  slotEmptyCell: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    borderWidth: 1.5,
-    borderColor: COLORS.tableBorder,
-    borderStyle: "dashed",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  slotEmptyPlus: {
-    fontSize: 18,
-    color: COLORS.tableBorder,
-    lineHeight: 22,
-  },
+  dayCell: { width: 52, minHeight: 64, padding: 4, borderRightWidth: 1, borderRightColor: COLORS.tableBorder, justifyContent: "center", alignItems: "center" },
+  dayCellSelected: { backgroundColor: "#FDF7F5" },
+  dayCellPast: { backgroundColor: "#F9F9F9" },
+  slotFilledCell: { width: 44, alignItems: "center", gap: 2 },
+  slotThumb: { width: 36, height: 36, borderRadius: 8 },
+  slotCellName: { fontSize: 9, color: COLORS.text, fontWeight: "600", textAlign: "center", width: 44 },
+  slotCellCals: { fontSize: 8, color: COLORS.textMuted, textAlign: "center" },
+  slotEmptyCell: { width: 32, height: 32, borderRadius: 8, borderWidth: 1.5, borderColor: COLORS.tableBorder, borderStyle: "dashed", alignItems: "center", justifyContent: "center" },
+  slotEmptyPlus: { fontSize: 18, color: COLORS.tableBorder, lineHeight: 22 },
 
-  actionBtn: {
-    marginHorizontal: 16,
-    marginTop: 10,
-    paddingVertical: 14,
-    borderRadius: 14,
-    backgroundColor: COLORS.card,
-    alignItems: "center",
-  },
+  actionBtn: { marginHorizontal: 16, marginTop: 10, paddingVertical: 14, borderRadius: 14, backgroundColor: COLORS.card, alignItems: "center" },
   actionBtnDisabled: { opacity: 0.5 },
-  actionBtnOutline: {
-    backgroundColor: "transparent",
-    borderWidth: 1.5,
-    borderColor: COLORS.tableBorder,
-  },
-  actionBtnText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#fff",
-  },
+  actionBtnOutline: { backgroundColor: "transparent", borderWidth: 1.5, borderColor: COLORS.tableBorder },
+  actionBtnText: { fontSize: 14, fontWeight: "600", color: "#fff" },
 
   modalContainer: { flex: 1, backgroundColor: COLORS.bg },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F0F0F0",
-  },
+  modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#F0F0F0" },
   modalClose: { fontSize: 18, color: "#888", padding: 4 },
   modalTitle: { fontSize: 17, fontWeight: "bold", color: COLORS.text },
 
-  searchContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    margin: 16,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    elevation: 1,
-  },
-  searchIcon: { fontSize: 16, marginRight: 8 },
+  searchContainer: { flexDirection: "row", alignItems: "center", backgroundColor: "#fff", margin: 16, borderRadius: 12, paddingHorizontal: 12, elevation: 1 },
   searchInput: { flex: 1, paddingVertical: 12, fontSize: 14 },
 
-  filterRow: {
-    paddingLeft: 16,
-    marginBottom: 8,
-    height: 50,
-    paddingVertical: 6,
-  },
-  filterChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderRadius: 20,
-    backgroundColor: "#fff",
-    marginRight: 8,
-    elevation: 1,
-    height: 34,
-    justifyContent: "center",
-  },
+  filterRow: { paddingLeft: 16, marginBottom: 8, height: 50, paddingVertical: 6 },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, backgroundColor: "#fff", marginRight: 8, elevation: 1, height: 34, justifyContent: "center" },
   filterChipActive: { backgroundColor: COLORS.card },
   filterChipText: { fontSize: 12, color: "#555" },
   filterChipTextActive: { color: "#fff", fontWeight: "600" },
 
-  recetaCard: {
-    flexDirection: "row",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    overflow: "hidden",
-    elevation: 2,
-  },
+  recetaCard: { flexDirection: "row", backgroundColor: "#fff", borderRadius: 14, overflow: "hidden", elevation: 2 },
   recetaCardImage: { width: 80, height: 80 },
   recetaCardInfo: { flex: 1, padding: 10, justifyContent: "center" },
   recetaCardName: { fontSize: 14, fontWeight: "600", color: COLORS.text },
   recetaCardCals: { fontSize: 12, color: "#888", marginTop: 3 },
   recetaCardDif: { fontSize: 11, color: COLORS.card, marginTop: 2 },
 
-  porcionesView: {
-    flexGrow: 1,
-    padding: 20,
-    alignItems: "center",
-    paddingBottom: 60,
-  },
-  recetaImagenGrande: {
-    width: "100%",
-    height: 180,
-    borderRadius: 16,
-    marginBottom: 16,
-  },
-  recetaNombreGrande: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: COLORS.text,
-    marginBottom: 20,
-    textAlign: "center",
-  },
+  porcionesView: { flexGrow: 1, padding: 20, alignItems: "center", paddingBottom: 60 },
+  recetaImagenGrande: { width: "100%", height: 180, borderRadius: 16, marginBottom: 16 },
+  recetaNombreGrande: { fontSize: 20, fontWeight: "bold", color: COLORS.text, marginBottom: 20, textAlign: "center" },
   porcionesLabel: { fontSize: 15, color: "#555", marginBottom: 12 },
-  porcionesControl: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 20,
-    marginBottom: 20,
-  },
-  porcionBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: COLORS.card,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  porcionesControl: { flexDirection: "row", alignItems: "center", gap: 20, marginBottom: 20 },
+  porcionBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: COLORS.card, alignItems: "center", justifyContent: "center" },
   porcionBtnText: { fontSize: 22, color: "#fff", fontWeight: "bold" },
-  porcionNum: {
-    fontSize: 32,
-    fontWeight: "bold",
-    color: COLORS.text,
-    minWidth: 40,
-    textAlign: "center",
-  },
+  porcionNum: { fontSize: 32, fontWeight: "bold", color: COLORS.text, minWidth: 40, textAlign: "center" },
 
-  nutritionPreview: {
-    width: "100%",
-    backgroundColor: "#FDF7F5",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 20,
-  },
-  nutritionPreviewTitle: {
-    fontSize: 13,
-    color: COLORS.card,
-    fontWeight: "600",
-    marginBottom: 10,
-    textAlign: "center",
-  },
+  nutritionPreview: { width: "100%", backgroundColor: "#FDF7F5", borderRadius: 14, padding: 14, marginBottom: 20 },
+  nutritionPreviewTitle: { fontSize: 13, color: COLORS.card, fontWeight: "600", marginBottom: 10, textAlign: "center" },
   macrosRow: { flexDirection: "row", justifyContent: "space-around" },
   macroItem: { alignItems: "center", gap: 3 },
   macroLabel: { fontSize: 11, color: "#888" },
   macroValue: { fontSize: 14, fontWeight: "bold", color: COLORS.text },
 
   modalActions: { flexDirection: "row", gap: 12, width: "100%" },
-  btnPrimary: {
-    flex: 1,
-    backgroundColor: COLORS.card,
-    padding: 14,
-    borderRadius: 12,
-    alignItems: "center",
-  },
+  btnPrimary: { flex: 1, backgroundColor: COLORS.card, padding: 14, borderRadius: 12, alignItems: "center" },
   btnPrimaryText: { color: "#fff", fontWeight: "bold", fontSize: 15 },
-  btnSecondary: {
-    flex: 1,
-    backgroundColor: "#fff",
-    padding: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-  },
+  btnSecondary: { flex: 1, backgroundColor: "#fff", padding: 14, borderRadius: 12, alignItems: "center", borderWidth: 1, borderColor: "#E0E0E0" },
   btnSecondaryText: { color: "#555", fontWeight: "600", fontSize: 15 },
 
-  overlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "flex-end",
-  },
-  optionsModal: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-  },
-  optionsTitle: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: COLORS.text,
-    marginBottom: 16,
-    textAlign: "center",
-  },
-  optionItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#F5F5F5",
-  },
+  overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end" },
+  optionsModal: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20 },
+  optionsTitle: { fontSize: 16, fontWeight: "bold", color: COLORS.text, marginBottom: 16, textAlign: "center" },
+  optionItem: { flexDirection: "row", alignItems: "center", gap: 14, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: "#F5F5F5" },
   optionLabel: { fontSize: 15, color: COLORS.text },
 
-  porcionesModal: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    alignItems: "center",
-    gap: 20,
-  },
-  moverModal: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-  },
-  moverLabel: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#555",
-    marginBottom: 8,
-  },
-  mealChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 20,
-  },
+  porcionesModal: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, alignItems: "center", gap: 20 },
+  moverModal: { backgroundColor: "#fff", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24 },
+  moverLabel: { fontSize: 14, fontWeight: "600", color: "#555", marginBottom: 8 },
+  mealChips: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 20 },
 
-  // Únicos estilos nuevos — loading y empty state
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: COLORS.textMuted,
-  },
-  emptyText: {
-    textAlign: "center",
-    color: COLORS.textMuted,
-    fontSize: 14,
-    marginTop: 40,
-  },
+  loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12 },
+  loadingText: { fontSize: 14, color: COLORS.textMuted },
+  emptyText: { textAlign: "center", color: COLORS.textMuted, fontSize: 14, marginTop: 40 },
 });

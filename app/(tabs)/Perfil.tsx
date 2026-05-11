@@ -1,4 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
+import * as ImagePicker from "expo-image-picker";
 import { router } from "expo-router";
 import { getAuth, signOut } from "firebase/auth";
 import {
@@ -27,6 +28,30 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+// ─── Cloudinary ───────────────────────────────────────────────────────────────
+const CLOUDINARY_CLOUD_NAME = "dbbsgfsr6";
+const CLOUDINARY_UPLOAD_PRESET = "mealprep_uploads";
+const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+
+async function subirImagenCloudinary(uri: string): Promise<string> {
+  const formData = new FormData();
+  if (Platform.OS === "web") {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    formData.append("file", blob);
+  } else {
+    const filename = uri.split("/").pop() || "photo.jpg";
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : "image/jpeg";
+    formData.append("file", { uri, name: filename, type } as any);
+  }
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+  const response = await fetch(CLOUDINARY_URL, { method: "POST", body: formData });
+  if (!response.ok) throw new Error(`Cloudinary error: ${await response.text()}`);
+  const data = await response.json();
+  return data.secure_url;
+}
 
 // ─── Paleta ───────────────────────────────────────────────────────────────────
 const COLORS = {
@@ -61,6 +86,7 @@ interface PerfilData {
   actividad: Actividad;
   objetivo: Objetivo;
   alergias: Record<string, boolean>;
+  fotoPerfil?: string;
 }
 
 interface RecetaItem {
@@ -70,6 +96,7 @@ interface RecetaItem {
   calorias: number;
   tiempo: number;
   dificultad: string;
+  username?: string;
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -81,7 +108,6 @@ const OBJETIVO_AJUSTE: Record<string, number> = {
 };
 const ALERGIAS_LISTA = ["Gluten", "Lácteos", "Huevos", "Mariscos", "Maní", "Frutos secos", "Soya", "Pescado"];
 
-// ─── TDEE ─────────────────────────────────────────────────────────────────────
 function calcularTDEE(edad: number, peso: number, altura: number, sexo: Sexo, actividad: Actividad, objetivo: Objetivo) {
   if (!edad || !peso || !altura || !sexo || !actividad || !objetivo) return null;
   const tmb = sexo === "Masculino"
@@ -94,16 +120,11 @@ function calcularTDEE(edad: number, peso: number, altura: number, sexo: Sexo, ac
   return { tdee, proteinas, grasas, carbohidratos };
 }
 
-// ─── Chip selector ────────────────────────────────────────────────────────────
 function SelectorChip({ options, value, onChange }: { options: string[]; value: string; onChange: (v: any) => void }) {
   return (
     <View style={chipStyles.row}>
       {options.map((opt) => (
-        <TouchableOpacity
-          key={opt}
-          style={[chipStyles.chip, value === opt && chipStyles.chipActive]}
-          onPress={() => onChange(opt)}
-        >
+        <TouchableOpacity key={opt} style={[chipStyles.chip, value === opt && chipStyles.chipActive]} onPress={() => onChange(opt)}>
           <Text style={[chipStyles.chipText, value === opt && chipStyles.chipTextActive]}>{opt}</Text>
         </TouchableOpacity>
       ))}
@@ -119,6 +140,33 @@ const chipStyles = StyleSheet.create({
   chipTextActive: { color: COLORS.card, fontWeight: "700" },
 });
 
+// ─── Mini card para Guardadas / Me gusta ──────────────────────────────────────
+function RecetaMiniCard({ receta }: { receta: RecetaItem }) {
+  return (
+    <View style={miniStyles.container}>
+      {receta.imagen ? (
+        <Image source={{ uri: receta.imagen }} style={miniStyles.imagen} resizeMode="cover" />
+      ) : (
+        <View style={[miniStyles.imagen, miniStyles.imagenPlaceholder]}>
+          <Ionicons name="restaurant-outline" size={24} color={COLORS.card} />
+        </View>
+      )}
+      <View style={miniStyles.overlay} />
+      <Text style={miniStyles.titulo} numberOfLines={2}>{receta.titulo}</Text>
+      {receta.username && <Text style={miniStyles.autor}>@{receta.username}</Text>}
+    </View>
+  );
+}
+
+const miniStyles = StyleSheet.create({
+  container: { width: GRID_SIZE, height: GRID_SIZE, position: "relative", borderRadius: 10, overflow: "hidden" },
+  imagen: { width: "100%", height: "100%" },
+  imagenPlaceholder: { backgroundColor: "#F0EAE7", justifyContent: "center", alignItems: "center" },
+  overlay: { position: "absolute", bottom: 0, left: 0, right: 0, height: "50%", backgroundColor: "rgba(0,0,0,0.35)" },
+  titulo: { position: "absolute", bottom: 14, left: 4, right: 4, fontSize: 9, color: "#fff", fontWeight: "700" },
+  autor: { position: "absolute", bottom: 4, left: 4, right: 4, fontSize: 8, color: "rgba(255,255,255,0.75)" },
+});
+
 // ─── Pantalla principal ───────────────────────────────────────────────────────
 export default function Perfil() {
   const auth = getAuth();
@@ -130,20 +178,30 @@ export default function Perfil() {
   const [activeTab, setActiveTab] = useState<TabType>("Recetas");
   const [modalEditar, setModalEditar] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingFoto, setUploadingFoto] = useState(false);
+  const [fotoPerfilLocal, setFotoPerfilLocal] = useState<string | null>(null);
 
-  // Recetas del usuario
   const [misRecetas, setMisRecetas] = useState<RecetaItem[]>([]);
   const [loadingRecetas, setLoadingRecetas] = useState(false);
 
+  // ── Liked y Saved ─────────────────────────────────────────────────────────
+  const [likedRecetas, setLikedRecetas] = useState<RecetaItem[]>([]);
+  const [savedRecetas, setSavedRecetas] = useState<RecetaItem[]>([]);
+  const [loadingLiked, setLoadingLiked] = useState(false);
+  const [loadingSaved, setLoadingSaved] = useState(false);
+
   const [form, setForm] = useState<PerfilData>({
     displayName: "", username: "", edad: "", peso: "",
-    altura: "", sexo: "", actividad: "", objetivo: "", alergias: {},
+    altura: "", sexo: "", actividad: "", objetivo: "", alergias: {}, fotoPerfil: "",
   });
 
   useEffect(() => { fetchUser(); }, []);
 
   useEffect(() => {
-    if (activeTab === "Recetas" && user) cargarMisRecetas();
+    if (!user) return;
+    if (activeTab === "Recetas") cargarMisRecetas();
+    if (activeTab === "Me gusta") cargarLiked();
+    if (activeTab === "Guardadas") cargarSaved();
   }, [activeTab]);
 
   const fetchUser = async () => {
@@ -163,7 +221,9 @@ export default function Perfil() {
           actividad: d.actividad || "",
           objetivo: d.objetivo || "",
           alergias: d.alergias || {},
+          fotoPerfil: d.fotoPerfil || "",
         });
+        setFotoPerfilLocal(d.fotoPerfil || null);
       }
     } catch (e) { console.error(e); }
     finally {
@@ -176,14 +236,31 @@ export default function Perfil() {
     if (!user) return;
     setLoadingRecetas(true);
     try {
-      const q = query(
-        collection(db, "users", user.uid, "recipes"),
-        orderBy("creadoEn", "desc")
-      );
+      const q = query(collection(db, "users", user.uid, "recipes"), orderBy("creadoEn", "desc"));
       const snap = await getDocs(q);
       setMisRecetas(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecetaItem)));
     } catch (e) { console.error(e); }
     finally { setLoadingRecetas(false); }
+  };
+
+  const cargarLiked = async () => {
+    if (!user) return;
+    setLoadingLiked(true);
+    try {
+      const snap = await getDocs(collection(db, "users", user.uid, "liked"));
+      setLikedRecetas(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecetaItem)));
+    } catch (e) { console.error(e); }
+    finally { setLoadingLiked(false); }
+  };
+
+  const cargarSaved = async () => {
+    if (!user) return;
+    setLoadingSaved(true);
+    try {
+      const snap = await getDocs(collection(db, "users", user.uid, "saved"));
+      setSavedRecetas(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecetaItem)));
+    } catch (e) { console.error(e); }
+    finally { setLoadingSaved(false); }
   };
 
   const logout = async () => {
@@ -191,15 +268,47 @@ export default function Perfil() {
     router.replace("/(auth)/login");
   };
 
+  const seleccionarFotoPerfil = () => {
+    Alert.alert("Foto de perfil", "¿Cómo quieres agregar tu foto?", [
+      { text: "Galería", onPress: abrirGaleria },
+      { text: "Cámara", onPress: abrirCamara },
+      { text: "Cancelar", style: "cancel" },
+    ]);
+  };
+
+  const abrirGaleria = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== "granted") { Alert.alert("Permiso requerido", "Necesitamos acceso a tu galería."); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, allowsEditing: true, aspect: [1, 1], quality: 0.7 });
+    if (!result.canceled) await procesarFoto(result.assets[0].uri);
+  };
+
+  const abrirCamara = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== "granted") { Alert.alert("Permiso requerido", "Necesitamos acceso a tu cámara."); return; }
+    const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, aspect: [1, 1], quality: 0.7 });
+    if (!result.canceled) await procesarFoto(result.assets[0].uri);
+  };
+
+  const procesarFoto = async (uri: string) => {
+    setFotoPerfilLocal(uri);
+    setUploadingFoto(true);
+    try {
+      const url = await subirImagenCloudinary(uri);
+      setForm((prev) => ({ ...prev, fotoPerfil: url }));
+    } catch (e) {
+      console.error(e);
+      Alert.alert("Error", "No se pudo subir la foto.");
+      setFotoPerfilLocal(userData?.fotoPerfil || null);
+    } finally { setUploadingFoto(false); }
+  };
+
   const guardar = async () => {
     const u = auth.currentUser;
     if (!u) { Alert.alert("Error", "No hay sesión activa."); return; }
-    if (!form.displayName.trim() || form.displayName.trim().length < 2) {
-      Alert.alert("Error", "El nombre debe tener al menos 2 caracteres."); return;
-    }
-    if (!form.username.trim() || form.username.trim().length < 3) {
-      Alert.alert("Error", "El nombre de usuario debe tener al menos 3 caracteres."); return;
-    }
+    if (uploadingFoto) { Alert.alert("Espera", "La foto aún se está subiendo."); return; }
+    if (!form.displayName.trim() || form.displayName.trim().length < 2) { Alert.alert("Error", "El nombre debe tener al menos 2 caracteres."); return; }
+    if (!form.username.trim() || form.username.trim().length < 3) { Alert.alert("Error", "El nombre de usuario debe tener al menos 3 caracteres."); return; }
     const calculo = calcularTDEE(Number(form.edad), Number(form.peso), Number(form.altura), form.sexo, form.actividad, form.objetivo);
     setSaving(true);
     try {
@@ -223,17 +332,15 @@ export default function Perfil() {
   };
 
   const calculo = calcularTDEE(Number(form.edad), Number(form.peso), Number(form.altura), form.sexo, form.actividad, form.objetivo);
-
   const displayName = userData?.displayName || user?.displayName || "Usuario";
   const username = userData?.username ? "@" + userData.username : null;
   const usernameIsSet = !!userData?.username;
+  const fotoPerfil = userData?.fotoPerfil || null;
 
   if (loading) {
     return (
       <SafeAreaView style={styles.safe}>
-        <View style={styles.centered}>
-          <ActivityIndicator size="large" color={COLORS.card} />
-        </View>
+        <View style={styles.centered}><ActivityIndicator size="large" color={COLORS.card} /></View>
       </SafeAreaView>
     );
   }
@@ -256,12 +363,14 @@ export default function Perfil() {
           </View>
         </View>
 
-        {/* Avatar + info */}
+        {/* Avatar */}
         <View style={styles.profileSection}>
           <View style={styles.avatarRing}>
-            <View style={styles.avatar}>
-              <Ionicons name="person" size={44} color="#bbb" />
-            </View>
+            {fotoPerfil ? (
+              <Image source={{ uri: fotoPerfil }} style={styles.avatarImage} resizeMode="cover" />
+            ) : (
+              <View style={styles.avatar}><Ionicons name="person" size={44} color="#bbb" /></View>
+            )}
           </View>
           {usernameIsSet
             ? <Text style={styles.username}>{username}</Text>
@@ -276,7 +385,7 @@ export default function Perfil() {
           )}
         </View>
 
-        {/* Stats — recetas reales */}
+        {/* Stats */}
         <View style={styles.statsRow}>
           <View style={styles.statItem}>
             <Text style={styles.statNumber}>{misRecetas.length}</Text>
@@ -284,13 +393,13 @@ export default function Perfil() {
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Seguidores</Text>
+            <Text style={styles.statNumber}>{likedRecetas.length}</Text>
+            <Text style={styles.statLabel}>Me gusta</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Siguiendo</Text>
+            <Text style={styles.statNumber}>{savedRecetas.length}</Text>
+            <Text style={styles.statLabel}>Guardadas</Text>
           </View>
         </View>
 
@@ -351,13 +460,9 @@ export default function Perfil() {
           <View style={styles.alergiasCard}>
             <Text style={styles.alergiasTitle}>Alergias e intolerancias</Text>
             <View style={styles.alergiasRow}>
-              {Object.entries(userData.alergias)
-                .filter(([_, v]) => v)
-                .map(([k]) => (
-                  <View key={k} style={styles.alergiaChip}>
-                    <Text style={styles.alergiaText}>{k}</Text>
-                  </View>
-                ))}
+              {Object.entries(userData.alergias).filter(([_, v]) => v).map(([k]) => (
+                <View key={k} style={styles.alergiaChip}><Text style={styles.alergiaText}>{k}</Text></View>
+              ))}
             </View>
           </View>
         )}
@@ -365,23 +470,17 @@ export default function Perfil() {
         {/* Tabs */}
         <View style={styles.tabsRow}>
           {(["Recetas", "Guardadas", "Me gusta"] as TabType[]).map((tab) => (
-            <TouchableOpacity
-              key={tab}
-              style={styles.tabItem}
-              onPress={() => setActiveTab(tab)}
-            >
+            <TouchableOpacity key={tab} style={styles.tabItem} onPress={() => setActiveTab(tab)}>
               <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{tab}</Text>
               {activeTab === tab && <View style={styles.tabUnderline} />}
             </TouchableOpacity>
           ))}
         </View>
 
-        {/* ── TAB RECETAS ── */}
+        {/* TAB RECETAS */}
         {activeTab === "Recetas" && (
           loadingRecetas ? (
-            <View style={styles.emptyGrid}>
-              <ActivityIndicator size="large" color={COLORS.card} />
-            </View>
+            <View style={styles.emptyGrid}><ActivityIndicator size="large" color={COLORS.card} /></View>
           ) : misRecetas.length === 0 ? (
             <View style={styles.emptyGrid}>
               <Ionicons name="restaurant-outline" size={48} color={COLORS.card} style={{ opacity: 0.4 }} />
@@ -393,11 +492,7 @@ export default function Perfil() {
           ) : (
             <View style={styles.grid}>
               {misRecetas.map((receta) => (
-                <TouchableOpacity
-                  key={receta.id}
-                  style={styles.gridItem}
-                  onPress={() => router.push("/(tabs)/recetas")}
-                >
+                <TouchableOpacity key={receta.id} style={styles.gridItem} onPress={() => router.push("/(tabs)/recetas")}>
                   {receta.imagen ? (
                     <Image source={{ uri: receta.imagen }} style={styles.gridImage} resizeMode="cover" />
                   ) : (
@@ -413,26 +508,48 @@ export default function Perfil() {
           )
         )}
 
-        {/* ── TAB GUARDADAS ── */}
+        {/* TAB GUARDADAS */}
         {activeTab === "Guardadas" && (
-          <View style={styles.emptyGrid}>
-            <Ionicons name="bookmark-outline" size={48} color={COLORS.card} style={{ opacity: 0.4 }} />
-            <Text style={styles.emptyText}>No tienes recetas guardadas</Text>
-          </View>
+          loadingSaved ? (
+            <View style={styles.emptyGrid}><ActivityIndicator size="large" color={COLORS.card} /></View>
+          ) : savedRecetas.length === 0 ? (
+            <View style={styles.emptyGrid}>
+              <Ionicons name="bookmark-outline" size={48} color={COLORS.card} style={{ opacity: 0.4 }} />
+              <Text style={styles.emptyText}>No tienes recetas guardadas</Text>
+              <Text style={styles.emptySubText}>Toca 🔖 en cualquier receta para guardarla</Text>
+            </View>
+          ) : (
+            <View style={styles.miniGrid}>
+              {savedRecetas.map((receta) => (
+                <RecetaMiniCard key={receta.id} receta={receta} />
+              ))}
+            </View>
+          )
         )}
 
-        {/* ── TAB ME GUSTA ── */}
+        {/* TAB ME GUSTA */}
         {activeTab === "Me gusta" && (
-          <View style={styles.emptyGrid}>
-            <Ionicons name="heart-outline" size={48} color={COLORS.card} style={{ opacity: 0.4 }} />
-            <Text style={styles.emptyText}>No has dado me gusta a ninguna receta</Text>
-          </View>
+          loadingLiked ? (
+            <View style={styles.emptyGrid}><ActivityIndicator size="large" color={COLORS.card} /></View>
+          ) : likedRecetas.length === 0 ? (
+            <View style={styles.emptyGrid}>
+              <Ionicons name="heart-outline" size={48} color={COLORS.card} style={{ opacity: 0.4 }} />
+              <Text style={styles.emptyText}>No has dado me gusta a ninguna receta</Text>
+              <Text style={styles.emptySubText}>Toca ❤️ en cualquier receta para darle me gusta</Text>
+            </View>
+          ) : (
+            <View style={styles.miniGrid}>
+              {likedRecetas.map((receta) => (
+                <RecetaMiniCard key={receta.id} receta={receta} />
+              ))}
+            </View>
+          )
         )}
 
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* ─── Modal Editar Perfil ──────────────────────────────────────────── */}
+      {/* Modal Editar Perfil */}
       <Modal visible={modalEditar} animationType="slide" statusBarTranslucent>
         <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
           <View style={styles.modalHeader}>
@@ -440,20 +557,28 @@ export default function Perfil() {
               <Ionicons name="chevron-down" size={26} color={COLORS.text} />
             </TouchableOpacity>
             <Text style={styles.modalTitle}>Editar perfil</Text>
-            <TouchableOpacity onPress={guardar} disabled={saving}>
+            <TouchableOpacity onPress={guardar} disabled={saving || uploadingFoto}>
               {saving
                 ? <ActivityIndicator size="small" color={COLORS.card} />
-                : <Text style={styles.modalSaveBtn}>Guardar</Text>
+                : <Text style={[styles.modalSaveBtn, uploadingFoto && { opacity: 0.4 }]}>Guardar</Text>
               }
             </TouchableOpacity>
           </View>
 
           <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
+
             <View style={styles.modalAvatarSection}>
-              <View style={styles.modalAvatar}>
-                <Ionicons name="person" size={44} color="#bbb" />
-              </View>
-              <Text style={styles.changePhoto}>Cambiar foto</Text>
+              <TouchableOpacity style={styles.avatarEditContainer} onPress={seleccionarFotoPerfil} disabled={uploadingFoto}>
+                {fotoPerfilLocal || form.fotoPerfil ? (
+                  <Image source={{ uri: fotoPerfilLocal || form.fotoPerfil }} style={styles.modalAvatarImage} resizeMode="cover" />
+                ) : (
+                  <View style={styles.modalAvatar}><Ionicons name="person" size={44} color="#bbb" /></View>
+                )}
+                <View style={styles.cameraOverlay}>
+                  {uploadingFoto ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="camera" size={18} color="#fff" />}
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.changePhoto}>{uploadingFoto ? "Subiendo foto..." : "Toca para cambiar foto"}</Text>
             </View>
 
             <Text style={styles.fieldLabel}>Nombre completo</Text>
@@ -534,7 +659,11 @@ export default function Perfil() {
               ))}
             </View>
 
-            <TouchableOpacity style={[styles.saveButton, saving && { opacity: 0.7 }]} onPress={guardar} disabled={saving}>
+            <TouchableOpacity
+              style={[styles.saveButton, (saving || uploadingFoto) && { opacity: 0.7 }]}
+              onPress={guardar}
+              disabled={saving || uploadingFoto}
+            >
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Guardar cambios</Text>}
             </TouchableOpacity>
 
@@ -546,7 +675,6 @@ export default function Perfil() {
   );
 }
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
   centered: { flex: 1, justifyContent: "center", alignItems: "center" },
@@ -560,8 +688,9 @@ const styles = StyleSheet.create({
   logoutBtn: { padding: 6, backgroundColor: COLORS.surface, borderRadius: 10, borderWidth: 1, borderColor: COLORS.border },
 
   profileSection: { alignItems: "center", paddingBottom: 16 },
-  avatarRing: { width: 96, height: 96, borderRadius: 48, borderWidth: 2.5, borderColor: COLORS.card, padding: 3, justifyContent: "center", alignItems: "center", marginBottom: 10 },
+  avatarRing: { width: 96, height: 96, borderRadius: 48, borderWidth: 2.5, borderColor: COLORS.card, padding: 3, justifyContent: "center", alignItems: "center", marginBottom: 10, overflow: "hidden" },
   avatar: { width: 84, height: 84, borderRadius: 42, backgroundColor: "#e8e8e8", justifyContent: "center", alignItems: "center", overflow: "hidden" },
+  avatarImage: { width: 90, height: 90, borderRadius: 45 },
   username: { fontSize: 16, fontWeight: "700", color: COLORS.text, marginBottom: 2 },
   usernameEmpty: { fontSize: 13, color: "#aaa", fontStyle: "italic", marginBottom: 2 },
   displayName: { fontSize: 13, color: COLORS.textMuted, marginBottom: 4 },
@@ -604,7 +733,6 @@ const styles = StyleSheet.create({
   tabTextActive: { color: COLORS.text },
   tabUnderline: { position: "absolute", bottom: 0, width: "50%", height: 2, backgroundColor: COLORS.card, borderRadius: 2 },
 
-  // Grid recetas
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 2, marginTop: 8, marginHorizontal: -20 },
   gridItem: { width: GRID_SIZE, height: GRID_SIZE, position: "relative" },
   gridImage: { width: "100%", height: "100%" },
@@ -612,19 +740,25 @@ const styles = StyleSheet.create({
   gridOverlay: { position: "absolute", bottom: 0, left: 0, right: 0, height: "40%", backgroundColor: "rgba(0,0,0,0.25)" },
   gridTitle: { position: "absolute", bottom: 4, left: 4, right: 4, fontSize: 9, color: "#fff", fontWeight: "600" },
 
+  miniGrid: { flexDirection: "row", flexWrap: "wrap", gap: 2, marginTop: 8, marginHorizontal: -20 },
+
   emptyGrid: { alignItems: "center", paddingVertical: 40, gap: 10 },
   emptyText: { fontSize: 13, color: COLORS.textMuted, textAlign: "center" },
+  emptySubText: { fontSize: 11, color: "#bbb", textAlign: "center" },
   emptyBtn: { backgroundColor: COLORS.card, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, marginTop: 4 },
   emptyBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 
-  // Modal
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   modalTitle: { fontSize: 17, fontWeight: "700", color: COLORS.text },
   modalSaveBtn: { fontSize: 15, fontWeight: "700", color: COLORS.card },
   modalBody: { padding: 20 },
-  modalAvatarSection: { alignItems: "center", marginBottom: 20 },
-  modalAvatar: { width: 84, height: 84, borderRadius: 42, backgroundColor: "#e8e8e8", justifyContent: "center", alignItems: "center", marginBottom: 8, borderWidth: 2, borderColor: COLORS.card },
-  changePhoto: { fontSize: 13, color: COLORS.card, fontWeight: "600" },
+
+  modalAvatarSection: { alignItems: "center", marginBottom: 24 },
+  avatarEditContainer: { position: "relative", marginBottom: 8 },
+  modalAvatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: "#e8e8e8", justifyContent: "center", alignItems: "center", borderWidth: 2.5, borderColor: COLORS.card },
+  modalAvatarImage: { width: 90, height: 90, borderRadius: 45, borderWidth: 2.5, borderColor: COLORS.card },
+  cameraOverlay: { position: "absolute", bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.card, justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: COLORS.surface },
+  changePhoto: { fontSize: 12, color: COLORS.textMuted },
 
   fieldLabel: { fontSize: 13, fontWeight: "700", color: COLORS.text, marginBottom: 6 },
   fieldHint: { fontSize: 11, color: "#aaa", marginBottom: 10 },

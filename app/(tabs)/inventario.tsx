@@ -11,7 +11,8 @@ import {
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
-  FlatList,
+  Alert,
+  ScrollView,
   Image,
   Modal,
   StyleSheet,
@@ -45,6 +46,12 @@ export default function Inventario() {
 
   const [items, setItems] = useState<Item[]>([]);
 
+  const [expandedSections, setExpandedSections] = useState({
+    Nevera: true,
+    Despensa: true,
+    Congelador: true,
+  })
+
   const [newName, setNewName] = useState("");
 
   const [newQtyNumber, setNewQtyNumber] = useState("");
@@ -64,7 +71,9 @@ export default function Inventario() {
   const today = new Date();
   const diffTime = date.getTime() - today.getTime();
   return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
 };
+
 
   useEffect(() => {
     const isExpoGo = Constants.appOwnership === "expo";
@@ -236,15 +245,36 @@ export default function Inventario() {
     setModalVisible(false);
   };
 
-  const handleDelete = async (item: Item) => {
-    const user = auth.currentUser;
-    if (!user) return;
+  const handleDeleteWithReason = (item: Item) => {
+    Alert.alert(
+    "Eliminar producto",
+    "¿Por qué deseas eliminarlo?",
+    [
+      { text: "Lo usé", onPress: () => eliminarItem(item, "usado") },
+      { text: "Se venció", onPress: () => eliminarItem(item, "vencido") },
+      { text: "Otro", onPress: () => eliminarItem(item, "otro") },
+      { text: "Cancelar", style: "cancel" },
+    ]
+  );
+};
 
-    await cancelNotifications(item.notificationIds || []);
+const eliminarItem = async (item: Item, razon: string) => {
+  const user = auth.currentUser;
+  if (!user) return;
 
-    const docRef = doc(db, "users", user.uid, "pantry_inventory", item.id);
-    await deleteDoc(docRef);
-  };
+  await cancelNotifications(item.notificationIds || []);
+
+  // (opcional) guardar historial
+  await addDoc(collection(db, "users", user.uid, "inventory_logs"), {
+    ...item,
+    eliminadoEn: new Date(),
+    razon,
+  });
+
+  // 🔥 AQUÍ VA TU CÓDIGO ORIGINAL
+  const docRef = doc(db, "users", user.uid, "pantry_inventory", item.id);
+  await deleteDoc(docRef);
+};
 
   const filteredItems = items.filter((item) => {
     const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());
@@ -252,6 +282,17 @@ export default function Inventario() {
 
     return matchSearch && matchFilter;
   });
+
+  const urgentItems = items.filter(
+  (i) => i.expirationDays <= 2 && i.expirationDays > 0
+);
+  
+
+  const groupedItems = {
+  Nevera: filteredItems.filter((i) => i.location === "Nevera"),
+  Despensa: filteredItems.filter((i) => i.location === "Despensa"),
+  Congelador: filteredItems.filter((i) => i.location === "Congelador"),
+};
 
   const getColor = (days: number) => {
     if (days <= 0) return "#E63946";
@@ -266,6 +307,12 @@ export default function Inventario() {
     if (days <= 7) return "Por caducar";
     return "Fresco";
   };
+  const toggleSection = (section: "Nevera" | "Despensa" | "Congelador") => {
+  setExpandedSections((prev) => ({
+    ...prev,
+    [section]: !prev[section],
+  }));
+};
 
   const renderItem = ({ item }: { item: Item }) => (
     <View style={styles.itemCard}>
@@ -302,13 +349,14 @@ export default function Inventario() {
             <Text style={styles.edit}>Editar</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => handleDelete(item)}>
+          <TouchableOpacity onPress={() => handleDeleteWithReason(item)}>
             <Text style={styles.delete}>Eliminar</Text>
           </TouchableOpacity>
         </View>
       </View>
     </View>
   );
+  
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -323,6 +371,12 @@ export default function Inventario() {
             source={require("../../Logo Chef.png")}
             style={styles.headerLogo}
           />
+          {urgentItems.length > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{urgentItems.length}</Text>
+            </View>
+          )}
+              
         </View>
 
         <TouchableOpacity
@@ -367,17 +421,10 @@ export default function Inventario() {
         </View>
 
         {/* ALERTA */}
-        {items.filter((i) => i.expirationDays <= 2 && i.expirationDays > 0)
-          .length > 0 && (
+        {urgentItems.length > 0 && (
           <View style={styles.alert}>
             <Text style={styles.alertText}>
-              ⚠️{" "}
-              {
-                items.filter(
-                  (i) => i.expirationDays <= 2 && i.expirationDays > 0,
-                ).length
-              }{" "}
-              productos vencen pronto
+              ⚠️ {urgentItems.length} productos vencen pronto
             </Text>
           </View>
         )}
@@ -407,13 +454,31 @@ export default function Inventario() {
           ))}
         </View>
 
-        <FlatList
-          data={filteredItems}
-          keyExtractor={(item) => item.id}
-          renderItem={renderItem}
-          contentContainerStyle={{ paddingBottom: 120 }}
-          showsVerticalScrollIndicator={false}
-        />
+        <ScrollView showsVerticalScrollIndicator={false}>
+          {Object.entries(groupedItems).map(([section, data]) => {
+            if (data.length === 0) return null;
+
+            const isOpen =
+             expandedSections[section as keyof typeof expandedSections];
+
+            return (
+              <View key={section}>
+        
+                <TouchableOpacity onPress={() => toggleSection(section as any)}>
+                  <Text style={styles.sectionTitle}>
+                   {isOpen ? "▼" : "►"} {section}
+                  </Text>
+                </TouchableOpacity>
+
+        
+                {isOpen &&
+                 data.map((item) => (
+                  <View key={item.id}>{renderItem({ item })}</View>
+                 ))}
+               </View>
+            );
+         })}
+       </ScrollView>
 
         {/* MODAL */}
         <Modal visible={modalVisible} animationType="slide" transparent>
@@ -592,6 +657,24 @@ const styles = StyleSheet.create({
     height: 52,
     borderRadius: 12,
   },
+  badge: {
+  position: "absolute",
+  top: -5,
+  right: -5,
+  backgroundColor: "#E63946",
+  borderRadius: 10,
+  minWidth: 18,
+  height: 18,
+  justifyContent: "center",
+  alignItems: "center",
+  paddingHorizontal: 4,
+},
+
+  badgeText: {
+  color: "#fff",
+  fontSize: 10,
+  fontWeight: "bold",
+},
 
   addButton: {
     backgroundColor: "#C4918A",
@@ -726,6 +809,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: "#888",
     marginTop: 2,
+  },
+
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 10,
+    marginBottom: 5,
+    color: "#2c1810",
   },
 
   status: { fontSize: 12, fontWeight: "600" },

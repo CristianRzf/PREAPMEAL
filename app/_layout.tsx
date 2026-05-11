@@ -3,6 +3,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { auth } from "../config/firebase";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 export default function RootLayout() {
   const [initializing, setInitializing] = useState(true);
@@ -18,34 +19,30 @@ export default function RootLayout() {
     return subscriber;
   }, []);
 
- useEffect(() => {
-  if (initializing) return;
+  useEffect(() => {
+    if (initializing) return;
 
-  const inAuthGroup = segments[0] === "(auth)";
-  const inVerify = segments[1] === "verificaremail";
+    const inAuthGroup = segments[0] === "(auth)";
+    const inVerify = segments[1] === "verificaremail";
 
-  if (!user) {
-    // No logueado
-    if (!inAuthGroup) {
-      router.replace("/(auth)/welcome");
+    if (!user) {
+      if (!inAuthGroup) {
+        router.replace("/(auth)/welcome");
+      }
+      return;
     }
-    return;
-  }
 
-  if (!user.emailVerified) {
-    // Logueado pero NO verificado
-    if (!inVerify) {
-      router.replace("/(auth)/verificaremail");
+    if (!user.emailVerified) {
+      if (!inVerify) {
+        router.replace("/(auth)/verificaremail");
+      }
+      return;
     }
-    return;
-  }
 
-  // Logueado y verificado
-  if (inAuthGroup) {
-    router.replace("/(tabs)");
-  }
-
-}, [user, initializing, segments]);
+    if (inAuthGroup) {
+      router.replace("/(tabs)");
+    }
+  }, [user, initializing, segments]);
 
   if (initializing) {
     return (
@@ -55,5 +52,9 @@ export default function RootLayout() {
     );
   }
 
-  return <Stack screenOptions={{ headerShown: false }} />;
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <Stack screenOptions={{ headerShown: false }} />
+    </GestureHandlerRootView>
+  );
 }
