@@ -1,4 +1,6 @@
 import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
+import { collection, onSnapshot } from 'firebase/firestore';
+import { auth, db } from '../config/firebase';
 import { useLinkBuilder } from '@react-navigation/native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +22,7 @@ const TAB_CONFIG: Record<string, { icon: string; label: string }> = {
   Perfil:         { icon: 'UserCircle',           label: 'Perfil' },
 };
 
-function TabItem({ route, isFocused, onPress }: { route: any; isFocused: boolean; onPress: () => void }) {
+function TabItem({ route, isFocused, onPress, urgentCount }: { route: any; isFocused: boolean; onPress: () => void; urgentCount: number }) {
   const scale = useSharedValue(1);
   const config = TAB_CONFIG[route.name];
   const IconComp = config ? (Icons as any)[`${config.icon}Icon`] : null;
@@ -39,6 +41,7 @@ function TabItem({ route, isFocused, onPress }: { route: any; isFocused: boolean
       accessibilityState={{ selected: isFocused }}
     >
       <Animated.View style={[styles.iconWrapper, animatedStyle]}>
+        <View style={{ position: 'relative' }}>
         {IconComp && (
           <IconComp
             size={24}
@@ -46,6 +49,14 @@ function TabItem({ route, isFocused, onPress }: { route: any; isFocused: boolean
             color={isFocused ? PRIMARY : INACTIVE}
           />
         )}
+        {route.name === 'inventario' && urgentCount > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>
+              {urgentCount}
+            </Text>
+          </View>
+        )}
+        </View>
         <Text style={[styles.label, { color: isFocused ? PRIMARY : INACTIVE }]}>
           {config?.label}
         </Text>
@@ -61,6 +72,44 @@ export default function CustomTabs({ state, navigation }: BottomTabBarProps) {
   const tabCount = state.routes.length;
   const sliderX = useSharedValue(0);
   const [tabWidth, setTabWidth] = React.useState(0);
+
+  const [urgentCount, setUrgentCount] = React.useState(0);
+  React.useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const ref = collection(
+      db,
+      'users',
+      user.uid,
+      'pantry_inventory'
+    );
+
+    const unsubscribe = onSnapshot(ref, (snapshot) => {
+
+      const urgent = snapshot.docs.filter((doc) => {
+        const data = doc.data();
+
+        if (!data.expirationDate) return false;
+
+        const today = new Date();
+        const expiration = new Date(data.expirationDate);
+
+        const diffTime =
+          expiration.getTime() - today.getTime();
+
+        const days = Math.ceil(
+          diffTime / (1000 * 60 * 60 * 24)
+        );
+
+        return days <= 2 && days >= 0;
+      });
+
+      setUrgentCount(urgent.length);
+    });
+
+    return unsubscribe;
+  }, []);
 
   React.useEffect(() => {
     if (tabWidth > 0) {
@@ -100,7 +149,7 @@ export default function CustomTabs({ state, navigation }: BottomTabBarProps) {
             navigation.navigate(route.name, route.params);
           }
         };
-        return <TabItem key={route.key} route={route} isFocused={isFocused} onPress={onPress} />;
+        return <TabItem key={route.key} route={route} isFocused={isFocused} onPress={onPress} urgentCount={urgentCount}/>;
       })}
     </View>
   );
@@ -136,5 +185,23 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 10,
     fontWeight: '500',
+  },
+   badge: {
+    position: 'absolute',
+    top: -6,
+    right: -10,
+    backgroundColor: '#E63946',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+
+  badgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
 });
