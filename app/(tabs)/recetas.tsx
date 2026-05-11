@@ -47,6 +47,7 @@ const COLORS = {
   textLight: "#FFFFFF",
   border: "#EDE8E4",
   error: "#FF6B6B",
+  like: "#E05050",
 };
 
 const { width } = Dimensions.get("window");
@@ -125,7 +126,6 @@ export default function RecetasScreen() {
   const [formPublica, setFormPublica] = useState(true);
   const [recetaDetalle, setRecetaDetalle] = useState<RecetaUsuario | null>(null);
 
-  // ── Me gusta y Guardadas ──────────────────────────────────────────────────
   const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
 
@@ -143,9 +143,7 @@ export default function RecetasScreen() {
     } catch (e: any) {
       console.error("ERROR Explorar:", e);
       setErrorExplorar(e?.message || "Error al cargar recetas");
-    } finally {
-      setLoadingExplorar(false);
-    }
+    } finally { setLoadingExplorar(false); }
   };
 
   const cargarMisRecetas = async () => {
@@ -183,15 +181,9 @@ export default function RecetasScreen() {
       setLikedIds((prev) => { const s = new Set(prev); s.delete(receta.id); return s; });
     } else {
       await setDoc(ref, {
-        titulo: receta.titulo,
-        imagen: receta.imagen,
-        calorias: receta.calorias,
-        tiempo: receta.tiempo,
-        dificultad: receta.dificultad,
-        mealType: receta.mealType,
-        userId: receta.userId,
-        username: receta.username,
-        creadoEn: serverTimestamp(),
+        titulo: receta.titulo, imagen: receta.imagen, calorias: receta.calorias,
+        tiempo: receta.tiempo, dificultad: receta.dificultad, mealType: receta.mealType,
+        userId: receta.userId, username: receta.username, creadoEn: serverTimestamp(),
       });
       setLikedIds((prev) => new Set(prev).add(receta.id));
     }
@@ -205,15 +197,9 @@ export default function RecetasScreen() {
       setSavedIds((prev) => { const s = new Set(prev); s.delete(receta.id); return s; });
     } else {
       await setDoc(ref, {
-        titulo: receta.titulo,
-        imagen: receta.imagen,
-        calorias: receta.calorias,
-        tiempo: receta.tiempo,
-        dificultad: receta.dificultad,
-        mealType: receta.mealType,
-        userId: receta.userId,
-        username: receta.username,
-        creadoEn: serverTimestamp(),
+        titulo: receta.titulo, imagen: receta.imagen, calorias: receta.calorias,
+        tiempo: receta.tiempo, dificultad: receta.dificultad, mealType: receta.mealType,
+        userId: receta.userId, username: receta.username, creadoEn: serverTimestamp(),
       });
       setSavedIds((prev) => new Set(prev).add(receta.id));
     }
@@ -281,18 +267,9 @@ export default function RecetasScreen() {
       const username = userSnap.exists() ? (userSnap.data().username || "usuario") : "usuario";
 
       const recetaData = {
-        tipo: "custom",
-        titulo,
-        descripcion: formDesc.trim(),
-        imagen: formImagenUrl,
-        calorias: cals,
-        tiempo,
-        dificultad: formDif,
-        mealType: formMeal,
-        userId,
-        username,
-        creadoEn: serverTimestamp(),
-        publica: formPublica,
+        tipo: "custom", titulo, descripcion: formDesc.trim(), imagen: formImagenUrl,
+        calorias: cals, tiempo, dificultad: formDif, mealType: formMeal,
+        userId, username, creadoEn: serverTimestamp(), publica: formPublica,
       };
 
       let globalId: string | null = null;
@@ -300,7 +277,6 @@ export default function RecetasScreen() {
         const globalRef = await addDoc(collection(db, "public_recipes"), recetaData);
         globalId = globalRef.id;
       }
-
       await addDoc(collection(db, "users", userId, "recipes"), { ...recetaData, globalId });
 
       Alert.alert("✓ Publicada", formPublica ? "Tu receta ya es visible para todos." : "Receta guardada como privada.");
@@ -477,9 +453,7 @@ export default function RecetasScreen() {
                       <Ionicons name="flame-outline" size={12} color={COLORS.textMuted} />
                       <Text style={styles.misRecetaMetaText}>{item.calorias} kcal</Text>
                     </View>
-                    <View style={styles.badge}>
-                      <Text style={styles.badgeText}>{item.dificultad}</Text>
-                    </View>
+                    <View style={styles.badge}><Text style={styles.badgeText}>{item.dificultad}</Text></View>
                   </View>
                   <TouchableOpacity style={styles.deleteBtn} onPress={() => eliminarReceta(item)}>
                     <Ionicons name="trash-outline" size={18} color={COLORS.card} />
@@ -496,6 +470,8 @@ export default function RecetasScreen() {
         {recetaDetalle && (
           <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
             <ScrollView showsVerticalScrollIndicator={false}>
+
+              {/* Imagen con solo el botón volver */}
               <View>
                 {recetaDetalle.imagen ? (
                   <Image source={{ uri: recetaDetalle.imagen }} style={styles.detalleImagen} resizeMode="cover" />
@@ -504,38 +480,53 @@ export default function RecetasScreen() {
                     <Ionicons name="restaurant-outline" size={56} color={COLORS.card} />
                   </View>
                 )}
-                {/* Botón volver */}
                 <TouchableOpacity style={styles.detalleBackBtn} onPress={() => setRecetaDetalle(null)}>
                   <Ionicons name="chevron-back" size={24} color="#fff" />
                 </TouchableOpacity>
-                {/* Botones Me gusta y Guardar */}
-                <View style={styles.detalleActions}>
-                  <TouchableOpacity
-                    style={[styles.detalleActionBtn, likedIds.has(recetaDetalle.id) && styles.detalleActionBtnActive]}
-                    onPress={() => toggleLike(recetaDetalle)}
-                  >
-                    <Ionicons
-                      name={likedIds.has(recetaDetalle.id) ? "heart" : "heart-outline"}
-                      size={22}
-                      color={likedIds.has(recetaDetalle.id) ? "#E05050" : "#fff"}
-                    />
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    style={[styles.detalleActionBtn, savedIds.has(recetaDetalle.id) && styles.detalleActionBtnActive]}
-                    onPress={() => toggleSave(recetaDetalle)}
-                  >
-                    <Ionicons
-                      name={savedIds.has(recetaDetalle.id) ? "bookmark" : "bookmark-outline"}
-                      size={22}
-                      color={savedIds.has(recetaDetalle.id) ? COLORS.card : "#fff"}
-                    />
-                  </TouchableOpacity>
-                </View>
               </View>
+
+              {/* Área blanca con info + botones estilo red social */}
               <View style={styles.detalleContent}>
-                <Text style={styles.detalleNombre}>{recetaDetalle.titulo}</Text>
+
+                {/* Fila superior: título + botones */}
+                <View style={styles.detalleTituloRow}>
+                  <Text style={styles.detalleNombre}>{recetaDetalle.titulo}</Text>
+                  <View style={styles.detalleAcciones}>
+                    {/* Me gusta */}
+                    <TouchableOpacity style={styles.accionBtn} onPress={() => toggleLike(recetaDetalle)}>
+                      <Ionicons
+                        name={likedIds.has(recetaDetalle.id) ? "heart" : "heart-outline"}
+                        size={26}
+                        color={likedIds.has(recetaDetalle.id) ? COLORS.like : COLORS.textMuted}
+                      />
+                      <Text style={[styles.accionLabel, likedIds.has(recetaDetalle.id) && { color: COLORS.like }]}>
+                        Me gusta
+                      </Text>
+                    </TouchableOpacity>
+                    {/* Guardar */}
+                    <TouchableOpacity style={styles.accionBtn} onPress={() => toggleSave(recetaDetalle)}>
+                      <Ionicons
+                        name={savedIds.has(recetaDetalle.id) ? "bookmark" : "bookmark-outline"}
+                        size={26}
+                        color={savedIds.has(recetaDetalle.id) ? COLORS.card : COLORS.textMuted}
+                      />
+                      <Text style={[styles.accionLabel, savedIds.has(recetaDetalle.id) && { color: COLORS.card }]}>
+                        Guardar
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
                 <Text style={styles.detalleAutor}>por @{recetaDetalle.username}</Text>
-                {recetaDetalle.descripcion ? <Text style={styles.detalleDesc}>{recetaDetalle.descripcion}</Text> : null}
+
+                {/* Separador */}
+                <View style={styles.detalleSeparador} />
+
+                {recetaDetalle.descripcion ? (
+                  <Text style={styles.detalleDesc}>{recetaDetalle.descripcion}</Text>
+                ) : null}
+
+                {/* Métricas */}
                 <View style={styles.detalleMeta}>
                   <View style={styles.detalleMetaItem}>
                     <Ionicons name="time-outline" size={16} color={COLORS.card} />
@@ -554,6 +545,7 @@ export default function RecetasScreen() {
                     <Text style={styles.detalleMetaText}>{MEAL_LABELS[recetaDetalle.mealType] || recetaDetalle.mealType}</Text>
                   </View>
                 </View>
+
                 <View style={{ height: 40 }} />
               </View>
             </ScrollView>
@@ -635,11 +627,7 @@ export default function RecetasScreen() {
               ))}
             </View>
 
-            <TouchableOpacity
-              style={[styles.publishBtn, (saving || uploadingImg) && { opacity: 0.7 }]}
-              onPress={publicarReceta}
-              disabled={saving || uploadingImg}
-            >
+            <TouchableOpacity style={[styles.publishBtn, (saving || uploadingImg) && { opacity: 0.7 }]} onPress={publicarReceta} disabled={saving || uploadingImg}>
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.publishBtnText}>Publicar receta</Text>}
             </TouchableOpacity>
             <View style={{ height: 40 }} />
@@ -737,17 +725,23 @@ const styles = StyleSheet.create({
   badgeText: { fontSize: 10, fontWeight: "600", color: COLORS.card },
   deleteBtn: { padding: 16 },
 
-  detalleImagen: { width: "100%", height: 260 },
+  // Detalle
+  detalleImagen: { width: "100%", height: 280 },
   detalleImagenPlaceholder: { backgroundColor: "#F0EAE7", justifyContent: "center", alignItems: "center" },
   detalleBackBtn: { position: "absolute", top: 56, left: 16, backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 20, padding: 6 },
-  detalleActions: { position: "absolute", top: 56, right: 16, flexDirection: "row", gap: 8 },
-  detalleActionBtn: { backgroundColor: "rgba(0,0,0,0.4)", borderRadius: 20, padding: 8 },
-  detalleActionBtnActive: { backgroundColor: "rgba(255,255,255,0.25)" },
-  detalleContent: { padding: 20 },
-  detalleNombre: { fontSize: 24, fontWeight: "800", color: COLORS.text, marginBottom: 4 },
-  detalleAutor: { fontSize: 13, color: COLORS.card, marginBottom: 10 },
+
+  detalleContent: { backgroundColor: COLORS.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, marginTop: -20, padding: 20 },
+
+  detalleTituloRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
+  detalleNombre: { flex: 1, fontSize: 22, fontWeight: "800", color: COLORS.text },
+  detalleAcciones: { flexDirection: "row", gap: 16, paddingTop: 4 },
+  accionBtn: { alignItems: "center", gap: 3 },
+  accionLabel: { fontSize: 10, color: COLORS.textMuted, fontWeight: "600" },
+
+  detalleAutor: { fontSize: 13, color: COLORS.card, marginTop: 4, marginBottom: 12 },
+  detalleSeparador: { height: 1, backgroundColor: COLORS.border, marginBottom: 12 },
   detalleDesc: { fontSize: 14, color: COLORS.textMuted, marginBottom: 14, lineHeight: 20 },
-  detalleMeta: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  detalleMeta: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 4 },
   detalleMetaItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   detalleMetaText: { fontSize: 13, color: COLORS.textMuted },
 
