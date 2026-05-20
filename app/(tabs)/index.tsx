@@ -1,43 +1,56 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Image,
-  ActivityIndicator,
-  Modal,
-  TextInput,
-  Platform,
-  KeyboardAvoidingView,
-} from "react-native";
-import {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  interpolate,
-  runOnJS,
-  useAnimatedScrollHandler,
-} from "react-native-reanimated";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { getAuth, signOut } from "firebase/auth";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  collection, doc, getDocs,
+  limit,
+  onSnapshot, orderBy, query,
+  setDoc,
+} from "firebase/firestore";
+import * as Icons from "phosphor-react-native";
 import { useEffect, useState } from "react";
 import {
-  collection, doc, onSnapshot, orderBy, query, limit, setDoc,
-} from "firebase/firestore";
-import { db, auth } from "../../config/firebase";
-import * as Icons from "phosphor-react-native";
-import Animated from "react-native-reanimated";
+  ActivityIndicator,
+  Dimensions,
+  Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { Gesture } from "react-native-gesture-handler";
+import Animated, {
+  interpolate,
+  runOnJS,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { auth, db } from "../../config/firebase";
 
 type TabKey = "inicio" | "nutricion" | "finanzas";
-
-type MealSlot = { slot: string; icon: string; meal: string | null; kcal: number | null };
 type DayMeal = { mealId: string; recipeName: string; kcal: number; proteina: number; carbos: number; grasas: number };
 type Budget = { mensual: number };
 type Transaction = { id: string; monto: number; categoria: string; descripcion: string; fecha: any };
+
+interface RecetaComunidad {
+  id: string;
+  titulo: string;
+  imagen: string;
+  username: string;
+  calorias: number;
+  userId: string;
+}
+
+const { width } = Dimensions.get("window");
+const COMMUNITY_CARD_W = (width - 56) / 2.3;
 
 const getTodayId = () => {
   const today = new Date();
@@ -64,13 +77,6 @@ const INNER_TABS = [
   { key: "finanzas", label: "Finanzas" },
 ];
 
-const MEAL_PLAN_TODAY: MealSlot[] = [
-  { slot: "Desayuno", icon: "🌅", meal: null, kcal: null },
-  { slot: "Almuerzo", icon: "☀️", meal: null, kcal: null },
-  { slot: "Cena", icon: "🌙", meal: null, kcal: null },
-  { slot: "Snacks", icon: "🍎", meal: null, kcal: null },
-];
-
 const QUICK_ACCESS = [
   { label: "Inventario", icon: "Archive", color: "#FFF4EE", accent: "#C4918A", route: "/inventario" },
   { label: "Planificador", icon: "BowlFood", color: "#EEF4EE", accent: "#2D6A4F", route: "/planificador" },
@@ -80,15 +86,12 @@ const QUICK_ACCESS = [
 
 function AnimatedProgressBar({ progress, color }: { progress: number; color: string }) {
   const scaleX = useSharedValue(0);
-
   useEffect(() => {
     scaleX.value = withSpring(progress, { damping: 15, stiffness: 80 });
   }, [progress]);
-
   const animStyle = useAnimatedStyle(() => ({
     transform: [{ scaleX: scaleX.value }],
   }));
-
   return (
     <View style={styles.progressBg}>
       <Animated.View style={[styles.progressFill, { backgroundColor: color }, animStyle]} />
@@ -131,6 +134,10 @@ export default function Home() {
   const [modalPresupuesto, setModalPresupuesto] = useState(false);
   const [inputPresupuesto, setInputPresupuesto] = useState("");
 
+  // ── Comunidad ─────────────────────────────────────────────────────────────
+  const [recetasComunidad, setRecetasComunidad] = useState<RecetaComunidad[]>([]);
+  const [loadingComunidad, setLoadingComunidad] = useState(true);
+
   useEffect(() => {
     translateY.value = withTiming(0, { duration: 600 });
     scale.value = withSpring(1);
@@ -152,10 +159,6 @@ export default function Home() {
     });
 
     const unsubMeals = onSnapshot(doc(db, "users", user.uid, "plan", getTodayId()), (snap) => {
-      console.log("DATA HOY:", JSON.stringify(snap.data()));
-      console.log("FECHA INDEX:", getTodayId());
-    console.log("DATA HOY:", JSON.stringify(snap.data()));
-    console.log("EXISTS:", snap.exists());
       if (!snap.exists()) {
         setMeals([]);
       } else {
@@ -188,6 +191,35 @@ export default function Home() {
     return () => { unsubInv(); unsubRec(); unsubProfile(); unsubMeals(); unsubBudget(); unsubTx(); };
   }, []);
 
+  // Carga preview de comunidad
+  useEffect(() => {
+    cargarComunidad();
+  }, []);
+
+  const cargarComunidad = async () => {
+    setLoadingComunidad(true);
+    try {
+      const q = query(
+        collection(db, "public_recipes"),
+        orderBy("creadoEn", "desc"),
+        limit(6)
+      );
+      const snap = await getDocs(q);
+      setRecetasComunidad(snap.docs.map((d) => ({
+        id: d.id,
+        titulo: d.data().titulo || "",
+        imagen: d.data().imagen || "",
+        username: d.data().username || "",
+        calorias: d.data().calorias || 0,
+        userId: d.data().userId || "",
+      })));
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingComunidad(false);
+    }
+  };
+
   const gestureHandler = Gesture.Pan()
     .activeOffsetX([-20, 20])
     .activeOffsetY([-10, 10])
@@ -215,10 +247,6 @@ export default function Home() {
   const statsAnimatedStyle = useAnimatedStyle(() => ({
     opacity: statsOpacity.value,
     transform: [{ scale: interpolate(statsOpacity.value, [0, 1], [0.9, 1]) }],
-  }));
-
-  const animatedTabStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
   }));
 
   const headerParallaxStyle = useAnimatedStyle(() => ({
@@ -258,343 +286,418 @@ export default function Home() {
   const disponible = budget ? budget.mensual - gastadoMes : 0;
 
   return (
-  <SafeAreaView style={styles.safe}>
-    <Animated.ScrollView
-      style={styles.scroll}
-      contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={false}
-      onScroll={scrollHandler}
-      scrollEventThrottle={16}
-    >
-      {/* HEADER */}
-      <Animated.View style={[styles.header, headerParallaxStyle]}>
-        <View style={styles.headerLeft}>
-          <Image source={require("../../Logo Chef.png")} style={styles.logo} />
-          <View>
-            <Text style={styles.greeting}>{getGreeting()},</Text>
-            <Text style={styles.name}>{firstName} 👋</Text>
-            <Text style={styles.date}>{getDayString()}</Text>
+    <SafeAreaView style={styles.safe}>
+      <Animated.ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={scrollHandler}
+        scrollEventThrottle={16}
+      >
+        {/* HEADER */}
+        <Animated.View style={[styles.header, headerParallaxStyle]}>
+          <View style={styles.headerLeft}>
+            <Image source={require("../../Logo Chef.png")} style={styles.logo} />
+            <View>
+              <Text style={styles.greeting}>{getGreeting()},</Text>
+              <Text style={styles.name}>{firstName} 👋</Text>
+              <Text style={styles.date}>{getDayString()}</Text>
+            </View>
           </View>
+          <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
+            <Icons.SignOutIcon size={18} color="#C4918A" weight="bold" />
+          </TouchableOpacity>
+        </Animated.View>
+
+        {/* INNER TABS */}
+        <View style={styles.innerTabBar}>
+          {INNER_TABS.map((tabItem) => (
+            <TouchableOpacity
+              key={tabItem.key}
+              style={[styles.innerTab, activeTab === tabItem.key && styles.innerTabActive]}
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setActiveTab(tabItem.key as TabKey);
+              }}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.innerTabText, activeTab === tabItem.key && styles.innerTabTextActive]}>
+                {tabItem.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
         </View>
-        <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
-          <Icons.SignOutIcon size={18} color="#C4918A" weight="bold" />
+
+        {/* ── TAB INICIO ── */}
+        {activeTab === "inicio" && (
+          <>
+            {expiringCount > 0 && (
+              <TouchableOpacity style={styles.alertBanner} onPress={() => router.push("/inventario" as any)}>
+                <Text style={styles.alertEmoji}>⚠️</Text>
+                <Text style={styles.alertText}>
+                  {expiringCount} producto{expiringCount > 1 ? "s" : ""} vence{expiringCount === 1 ? "" : "n"} pronto
+                </Text>
+                <Icons.ArrowRightIcon size={14} color="#7A5C00" weight="bold" />
+              </TouchableOpacity>
+            )}
+
+            <Animated.View style={[styles.statsRow, statsAnimatedStyle]}>
+              <View style={[styles.statCard, { backgroundColor: "#FFF4EE" }]}>
+                <Icons.ArchiveIcon size={20} color="#C4918A" weight="fill" />
+                <Text style={styles.statNumber}>{inventoryCount}</Text>
+                <Text style={styles.statLabel}>Inventario</Text>
+              </View>
+              <View style={[styles.statCard, { backgroundColor: "#EEF4EE" }]}>
+                <Icons.BowlFoodIcon size={20} color="#2D6A4F" weight="fill" />
+                <Text style={[styles.statNumber, { color: "#2D6A4F" }]}>{recipesCount}</Text>
+                <Text style={styles.statLabel}>Recetas</Text>
+              </View>
+              <View style={[styles.statCard, { backgroundColor: "#FFF4EE" }]}>
+                <Icons.FireIcon size={20} color="#C4918A" weight="fill" />
+                <Text style={styles.statNumber}>{Math.round(totals.kcal)}</Text>
+                <Text style={styles.statLabel}>kcal hoy</Text>
+              </View>
+            </Animated.View>
+
+            <View style={styles.card}>
+              <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle}>Plan de hoy</Text>
+                <TouchableOpacity onPress={() => router.push("/planificador" as any)}>
+                  <Text style={styles.seeAll}>Planificar →</Text>
+                </TouchableOpacity>
+              </View>
+              {meals.length === 0 ? (
+                <>
+                  {[
+                    { slot: "Desayuno", icon: "🌅" },
+                    { slot: "Almuerzo", icon: "☀️" },
+                    { slot: "Cena", icon: "🌙" },
+                    { slot: "Snacks", icon: "🍎" },
+                  ].map((item) => (
+                    <View key={item.slot} style={styles.mealRow}>
+                      <Text style={styles.mealIcon}>{item.icon}</Text>
+                      <View style={styles.mealInfo}>
+                        <Text style={styles.mealSlot}>{item.slot}</Text>
+                        <Text style={styles.mealName}>Sin planificar</Text>
+                      </View>
+                      <TouchableOpacity style={styles.addMealBtn} onPress={() => router.push("/planificador" as any)}>
+                        <Text style={styles.addMealText}>+ Añadir</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </>
+              ) : (
+                <>
+                  {meals.map((m) => (
+                    <View key={m.mealId} style={styles.mealRow}>
+                      <Text style={styles.mealIcon}>
+                        {m.mealId === "desayuno" ? "🌅" : m.mealId === "almuerzo" ? "☀️" : m.mealId === "cena" ? "🌙" : "🍎"}
+                      </Text>
+                      <View style={styles.mealInfo}>
+                        <Text style={styles.mealSlot}>{m.mealId.charAt(0).toUpperCase() + m.mealId.slice(1)}</Text>
+                        <Text style={styles.mealName}>{m.recipeName}</Text>
+                      </View>
+                      <Text style={styles.mealKcal}>{Math.round(m.kcal)} kcal</Text>
+                    </View>
+                  ))}
+                  <TouchableOpacity
+                    style={[styles.addMealBtn, { alignSelf: "flex-end", marginTop: 8 }]}
+                    onPress={() => router.push("/planificador" as any)}
+                  >
+                    <Text style={styles.addMealText}>+ Añadir más</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+
+            <Text style={styles.sectionTitle}>Accesos rápidos</Text>
+            <View style={styles.quickGrid}>
+              {QUICK_ACCESS.map((item) => {
+                const IconComp = (Icons as any)[`${item.icon}Icon`];
+                return (
+                  <TouchableOpacity
+                    key={item.label}
+                    style={[styles.quickCard, { backgroundColor: item.color }]}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push(item.route as any); }}
+                    activeOpacity={0.75}
+                  >
+                    {IconComp && <IconComp size={26} color={item.accent} weight="fill" />}
+                    <Text style={[styles.quickLabel, { color: item.accent }]}>{item.label}</Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* ── SECCIÓN COMUNIDAD ─────────────────────────────────────── */}
+            <View style={styles.comunidadHeader}>
+              <View>
+                <Text style={styles.sectionTitle}>Comunidad</Text>
+                <Text style={styles.comunidadSub}>Recetas recientes de la comunidad</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.comunidadVerTodo}
+                onPress={() => router.push("/comunidad" as any)}
+              >
+                <Text style={styles.comunidadVerTodoText}>Ver todo</Text>
+                <Icons.ArrowRightIcon size={13} color="#C4918A" weight="bold" />
+              </TouchableOpacity>
+            </View>
+
+            {loadingComunidad ? (
+              <ActivityIndicator color="#C4918A" style={{ marginBottom: 16 }} />
+            ) : recetasComunidad.length === 0 ? (
+              <View style={styles.comunidadEmpty}>
+                <Icons.UsersIcon size={32} color="#C4918A" weight="thin" />
+                <Text style={styles.comunidadEmptyText}>Aún no hay recetas en la comunidad</Text>
+                <TouchableOpacity
+                  style={styles.comunidadEmptyBtn}
+                  onPress={() => router.push("/recetas" as any)}
+                >
+                  <Text style={styles.comunidadEmptyBtnText}>Publicar receta</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <Animated.ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.comunidadScroll}
+                contentContainerStyle={{ paddingRight: 20 }}
+              >
+                {recetasComunidad.map((receta) => (
+                  <TouchableOpacity
+                    key={receta.id}
+                    style={styles.comunidadCard}
+                    onPress={() => router.push("/recetas" as any)}
+                    activeOpacity={0.88}
+                  >
+                    {receta.imagen ? (
+                      <Image source={{ uri: receta.imagen }} style={styles.comunidadCardImg} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.comunidadCardImg, styles.comunidadCardImgPlaceholder]}>
+                        <Icons.BowlFoodIcon size={28} color="#C4918A" weight="thin" />
+                      </View>
+                    )}
+                    <View style={styles.comunidadCardOverlay} />
+                    <View style={styles.comunidadCardInfo}>
+                      <Text style={styles.comunidadCardTitulo} numberOfLines={2}>{receta.titulo}</Text>
+                      <TouchableOpacity
+                        onPress={() => router.push({ pathname: "/perfilPublico", params: { uid: receta.userId } } as any)}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Text style={styles.comunidadCardAutor}>@{receta.username}</Text>
+                      </TouchableOpacity>
+                      <Text style={styles.comunidadCardKcal}>{receta.calorias} kcal</Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+
+                {/* Card "Ver más" */}
+                <TouchableOpacity
+                  style={styles.comunidadCardVerMas}
+                  onPress={() => router.push("/comunidad" as any)}
+                  activeOpacity={0.8}
+                >
+                  <Icons.ArrowRightIcon size={28} color="#C4918A" weight="bold" />
+                  <Text style={styles.comunidadCardVerMasText}>Ver{"\n"}más</Text>
+                </TouchableOpacity>
+              </Animated.ScrollView>
+            )}
+          </>
+        )}
+
+        {/* ── TAB NUTRICIÓN ── */}
+        {activeTab === "nutricion" && (
+          <>
+            {loadingNutricion ? (
+              <ActivityIndicator color="#C4918A" style={{ marginTop: 40 }} />
+            ) : meals.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Icons.BowlFoodIcon size={48} color="#C4918A" weight="thin" />
+                <Text style={styles.emptyTitle}>Sin comidas planificadas hoy</Text>
+                <Text style={styles.emptySubtitle}>Agrega recetas a tu planificador para ver tu resumen nutricional aquí.</Text>
+                <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push("/planificador" as any)}>
+                  <Text style={styles.emptyBtnText}>Ir al planificador</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <View style={styles.card}>
+                  <Text style={styles.cardTitle}>Calorías de hoy</Text>
+                  <View style={styles.kcalRow}>
+                    <Text style={styles.kcalConsumed}>{Math.round(totals.kcal)}</Text>
+                    <Text style={styles.kcalTotal}> / {kcalObjetivo} kcal</Text>
+                  </View>
+                  <AnimatedProgressBar progress={kcalPct} color={kcalBarColor} />
+                  <Text style={styles.kcalRemaining}>
+                    {kcalObjetivo > totals.kcal
+                      ? `Faltan ${Math.round(kcalObjetivo - totals.kcal)} kcal para tu meta`
+                      : `Superaste tu meta por ${Math.round(totals.kcal - kcalObjetivo)} kcal`}
+                  </Text>
+                </View>
+
+                <View style={styles.card}>
+                  <Text style={[styles.cardTitle, { marginBottom: 14 }]}>Macronutrientes</Text>
+                  {[
+                    { label: "Proteína", val: totals.proteina, color: "#C4918A" },
+                    { label: "Carbos", val: totals.carbos, color: "#E9C46A" },
+                    { label: "Grasas", val: totals.grasas, color: "#2D6A4F" },
+                  ].map((m) => (
+                    <View key={m.label} style={{ marginBottom: 12 }}>
+                      <View style={styles.macroRowFull}>
+                        <View style={[styles.macroDot, { backgroundColor: m.color }]} />
+                        <Text style={styles.macroLabelFull}>{m.label}</Text>
+                        <Text style={styles.macroValFull}>{Math.round(m.val)}g</Text>
+                      </View>
+                      <AnimatedProgressBar
+                        progress={Math.min((m.val / Math.max(totals.proteina + totals.carbos + totals.grasas, 1)), 1)}
+                        color={m.color}
+                      />
+                    </View>
+                  ))}
+                </View>
+
+                <View style={styles.card}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.cardTitle}>Comidas de hoy</Text>
+                    <TouchableOpacity onPress={() => router.push("/planificador" as any)}>
+                      <Text style={styles.seeAll}>Ver plan →</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {meals.map((m) => (
+                    <View key={m.mealId} style={styles.mealRow}>
+                      <View style={styles.mealInfo}>
+                        <Text style={styles.mealName}>{m.recipeName}</Text>
+                      </View>
+                      <Text style={styles.mealKcal}>{Math.round(m.kcal)} kcal</Text>
+                    </View>
+                  ))}
+                </View>
+              </>
+            )}
+          </>
+        )}
+
+        {/* ── TAB FINANZAS ── */}
+        {activeTab === "finanzas" && (
+          <>
+            {loadingFinanzas ? (
+              <ActivityIndicator color="#C4918A" style={{ marginTop: 40 }} />
+            ) : !budget ? (
+              <View style={styles.emptyCard}>
+                <Icons.PiggyBankIcon size={48} color="#C4918A" weight="thin" />
+                <Text style={styles.emptyTitle}>Sin presupuesto configurado</Text>
+                <Text style={styles.emptySubtitle}>Configura tu presupuesto mensual para hacer seguimiento de tus gastos.</Text>
+                <TouchableOpacity style={styles.emptyBtn} onPress={() => setModalPresupuesto(true)}>
+                  <Text style={styles.emptyBtnText}>Configurar presupuesto</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <View style={styles.card}>
+                  <View style={styles.cardHeader}>
+                    <Text style={styles.cardTitle}>Presupuesto del mes</Text>
+                    <TouchableOpacity onPress={() => { setInputPresupuesto(budget.mensual.toString()); setModalPresupuesto(true); }}>
+                      <Icons.PencilSimpleIcon size={16} color="#C4918A" weight="bold" />
+                    </TouchableOpacity>
+                  </View>
+                  <View style={styles.kcalRow}>
+                    <Text style={styles.kcalConsumed}>{formatCOP(gastadoMes)}</Text>
+                    <Text style={styles.kcalTotal}> / {formatCOP(budget.mensual)}</Text>
+                  </View>
+                  <AnimatedProgressBar progress={pctGasto} color={gastoBarColor} />
+                  <Text style={styles.kcalRemaining}>
+                    {disponible >= 0
+                      ? `Disponible: ${formatCOP(disponible)} · ${diasRestantes} días restantes`
+                      : `Excediste tu presupuesto en ${formatCOP(Math.abs(disponible))}`}
+                  </Text>
+                  <View style={styles.metricsRow}>
+                    <View style={styles.metricItem}>
+                      <Text style={styles.metricVal}>{formatCOP(promedioDiario)}</Text>
+                      <Text style={styles.metricLabel}>Promedio/día</Text>
+                    </View>
+                    <View style={[styles.metricItem, styles.metricBorder]}>
+                      <Text style={[styles.metricVal, { color: proyeccion > budget.mensual ? "#E63946" : "#2D6A4F" }]}>
+                        {formatCOP(proyeccion)}
+                      </Text>
+                      <Text style={styles.metricLabel}>Proyección</Text>
+                    </View>
+                    <View style={styles.metricItem}>
+                      <Text style={styles.metricVal}>{formatCOP(diasRestantes > 0 ? disponible / diasRestantes : 0)}</Text>
+                      <Text style={styles.metricLabel}>Recomend./día</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {transactions.length === 0 ? (
+                  <View style={styles.emptyCard}>
+                    <Icons.ReceiptIcon size={36} color="#C4918A" weight="thin" />
+                    <Text style={styles.emptyTitle}>Sin gastos este mes</Text>
+                    <Text style={styles.emptySubtitle}>Los gastos se registran automáticamente al completar tu lista de compras.</Text>
+                  </View>
+                ) : (
+                  <View style={styles.card}>
+                    <Text style={[styles.cardTitle, { marginBottom: 14 }]}>Últimas transacciones</Text>
+                    {transactions.slice(0, 5).map((t) => {
+                      const fecha = t.fecha?.toDate?.();
+                      const fechaStr = fecha ? fecha.toLocaleDateString("es-CO", { day: "numeric", month: "short" }) : "";
+                      return (
+                        <View key={t.id} style={styles.mealRow}>
+                          <View style={styles.txIcon}>
+                            <Icons.ReceiptIcon size={16} color="#C4918A" weight="fill" />
+                          </View>
+                          <View style={styles.mealInfo}>
+                            <Text style={styles.mealName}>{t.descripcion}</Text>
+                            <Text style={styles.mealSlot}>{fechaStr} · {t.categoria}</Text>
+                          </View>
+                          <Text style={styles.mealKcal}>{formatCOP(t.monto)}</Text>
+                        </View>
+                      );
+                    })}
+                  </View>
+                )}
+              </>
+            )}
+          </>
+        )}
+
+        <View style={{ height: 100 }} />
+      </Animated.ScrollView>
+
+      {/* FAB */}
+      <Animated.View style={[styles.fabContainer, fabStyle]}>
+        <TouchableOpacity
+          style={styles.fab}
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/planificador" as any); }}
+        >
+          <Icons.PlusIcon size={24} color="#fff" weight="bold" />
         </TouchableOpacity>
       </Animated.View>
 
-      {/* INNER TABS */}
-      <View style={styles.innerTabBar}>
-        {INNER_TABS.map((tabItem) => (
-          <TouchableOpacity
-            key={tabItem.key}
-            style={[styles.innerTab, activeTab === tabItem.key && styles.innerTabActive]}
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setActiveTab(tabItem.key as TabKey);
-            }}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.innerTabText, activeTab === tabItem.key && styles.innerTabTextActive]}>
-              {tabItem.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* ── TAB INICIO ── */}
-      {activeTab === "inicio" && (
-        <>
-          {expiringCount > 0 && (
-            <TouchableOpacity style={styles.alertBanner} onPress={() => router.push("/inventario" as any)}>
-              <Text style={styles.alertEmoji}>⚠️</Text>
-              <Text style={styles.alertText}>
-                {expiringCount} producto{expiringCount > 1 ? "s" : ""} vence{expiringCount === 1 ? "" : "n"} pronto
-              </Text>
-              <Icons.ArrowRightIcon size={14} color="#7A5C00" weight="bold" />
+      {/* MODAL PRESUPUESTO */}
+      <Modal visible={modalPresupuesto} transparent animationType="slide">
+        <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>{budget ? "Editar presupuesto" : "Configurar presupuesto"}</Text>
+            <Text style={styles.modalLabel}>Presupuesto mensual (COP)</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Ej: 400000"
+              keyboardType="numeric"
+              value={inputPresupuesto}
+              onChangeText={setInputPresupuesto}
+              placeholderTextColor="#aaa"
+            />
+            <TouchableOpacity style={styles.modalBtn} onPress={guardarPresupuesto}>
+              <Text style={styles.modalBtnText}>Guardar</Text>
             </TouchableOpacity>
-          )}
-
-          <Animated.View style={[styles.statsRow, statsAnimatedStyle]}>
-            <View style={[styles.statCard, { backgroundColor: "#FFF4EE" }]}>
-              <Icons.ArchiveIcon size={20} color="#C4918A" weight="fill" />
-              <Text style={styles.statNumber}>{inventoryCount}</Text>
-              <Text style={styles.statLabel}>Inventario</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: "#EEF4EE" }]}>
-              <Icons.BowlFoodIcon size={20} color="#2D6A4F" weight="fill" />
-              <Text style={[styles.statNumber, { color: "#2D6A4F" }]}>{recipesCount}</Text>
-              <Text style={styles.statLabel}>Recetas</Text>
-            </View>
-            <View style={[styles.statCard, { backgroundColor: "#FFF4EE" }]}>
-              <Icons.FireIcon size={20} color="#C4918A" weight="fill" />
-              <Text style={styles.statNumber}>{Math.round(totals.kcal)}</Text>
-              <Text style={styles.statLabel}>kcal hoy</Text>
-            </View>
-          </Animated.View>
-
-          <View style={styles.card}>
-            <View style={styles.cardHeader}>
-              <Text style={styles.cardTitle}>Plan de hoy</Text>
-              <TouchableOpacity onPress={() => router.push("/planificador" as any)}>
-                <Text style={styles.seeAll}>Planificar →</Text>
-              </TouchableOpacity>
-            </View>
-            {meals.length === 0 ? (
-              <>
-                {[
-                  { slot: "Desayuno", icon: "🌅" },
-                  { slot: "Almuerzo", icon: "☀️" },
-                  { slot: "Cena", icon: "🌙" },
-                  { slot: "Snacks", icon: "🍎" },
-                ].map((item) => (
-                  <View key={item.slot} style={styles.mealRow}>
-                    <Text style={styles.mealIcon}>{item.icon}</Text>
-                    <View style={styles.mealInfo}>
-                      <Text style={styles.mealSlot}>{item.slot}</Text>
-                      <Text style={styles.mealName}>Sin planificar</Text>
-                    </View>
-                    <TouchableOpacity style={styles.addMealBtn} onPress={() => router.push("/planificador" as any)}>
-                      <Text style={styles.addMealText}>+ Añadir</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </>
-            ) : (
-              <>
-                {meals.map((m) => (
-                  <View key={m.mealId} style={styles.mealRow}>
-                    <Text style={styles.mealIcon}>
-                      {m.mealId === "desayuno" ? "🌅" : m.mealId === "almuerzo" ? "☀️" : m.mealId === "cena" ? "🌙" : "🍎"}
-                    </Text>
-                    <View style={styles.mealInfo}>
-                      <Text style={styles.mealSlot}>{m.mealId.charAt(0).toUpperCase() + m.mealId.slice(1)}</Text>
-                      <Text style={styles.mealName}>{m.recipeName}</Text>
-                    </View>
-                    <Text style={styles.mealKcal}>{Math.round(m.kcal)} kcal</Text>
-                  </View>
-                ))}
-                <TouchableOpacity
-                  style={[styles.addMealBtn, { alignSelf: "flex-end", marginTop: 8 }]}
-                  onPress={() => router.push("/planificador" as any)}
-                >
-                  <Text style={styles.addMealText}>+ Añadir más</Text>
-                </TouchableOpacity>
-              </>
-            )}
+            <TouchableOpacity onPress={() => setModalPresupuesto(false)}>
+              <Text style={styles.modalCancel}>Cancelar</Text>
+            </TouchableOpacity>
           </View>
-
-          <Text style={styles.sectionTitle}>Accesos rápidos</Text>
-          <View style={styles.quickGrid}>
-            {QUICK_ACCESS.map((item) => {
-              const IconComp = (Icons as any)[`${item.icon}Icon`];
-              return (
-                <TouchableOpacity
-                  key={item.label}
-                  style={[styles.quickCard, { backgroundColor: item.color }]}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push(item.route as any); }}
-                  activeOpacity={0.75}
-                >
-                  {IconComp && <IconComp size={26} color={item.accent} weight="fill" />}
-                  <Text style={[styles.quickLabel, { color: item.accent }]}>{item.label}</Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </>
-      )}
-
-      {/* ── TAB NUTRICIÓN ── */}
-      {activeTab === "nutricion" && (
-        <>
-          {loadingNutricion ? (
-            <ActivityIndicator color="#C4918A" style={{ marginTop: 40 }} />
-          ) : meals.length === 0 ? (
-            <View style={styles.emptyCard}>
-              <Icons.BowlFoodIcon size={48} color="#C4918A" weight="thin" />
-              <Text style={styles.emptyTitle}>Sin comidas planificadas hoy</Text>
-              <Text style={styles.emptySubtitle}>Agrega recetas a tu planificador para ver tu resumen nutricional aquí.</Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={() => router.push("/planificador" as any)}>
-                <Text style={styles.emptyBtnText}>Ir al planificador</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <>
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Calorías de hoy</Text>
-                <View style={styles.kcalRow}>
-                  <Text style={styles.kcalConsumed}>{Math.round(totals.kcal)}</Text>
-                  <Text style={styles.kcalTotal}> / {kcalObjetivo} kcal</Text>
-                </View>
-                <AnimatedProgressBar progress={kcalPct} color={kcalBarColor} />
-                <Text style={styles.kcalRemaining}>
-                  {kcalObjetivo > totals.kcal
-                    ? `Faltan ${Math.round(kcalObjetivo - totals.kcal)} kcal para tu meta`
-                    : `Superaste tu meta por ${Math.round(totals.kcal - kcalObjetivo)} kcal`}
-                </Text>
-              </View>
-
-              <View style={styles.card}>
-                <Text style={[styles.cardTitle, { marginBottom: 14 }]}>Macronutrientes</Text>
-                {[
-                  { label: "Proteína", val: totals.proteina, color: "#C4918A" },
-                  { label: "Carbos", val: totals.carbos, color: "#E9C46A" },
-                  { label: "Grasas", val: totals.grasas, color: "#2D6A4F" },
-                ].map((m) => (
-                  <View key={m.label} style={{ marginBottom: 12 }}>
-                    <View style={styles.macroRowFull}>
-                      <View style={[styles.macroDot, { backgroundColor: m.color }]} />
-                      <Text style={styles.macroLabelFull}>{m.label}</Text>
-                      <Text style={styles.macroValFull}>{Math.round(m.val)}g</Text>
-                    </View>
-                    <AnimatedProgressBar
-                      progress={Math.min((m.val / Math.max(totals.proteina + totals.carbos + totals.grasas, 1)), 1)}
-                      color={m.color}
-                    />
-                  </View>
-                ))}
-              </View>
-
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>Comidas de hoy</Text>
-                  <TouchableOpacity onPress={() => router.push("/planificador" as any)}>
-                    <Text style={styles.seeAll}>Ver plan →</Text>
-                  </TouchableOpacity>
-                </View>
-                {meals.map((m) => (
-                  <View key={m.mealId} style={styles.mealRow}>
-                    <View style={styles.mealInfo}>
-                      <Text style={styles.mealName}>{m.recipeName}</Text>
-                    </View>
-                    <Text style={styles.mealKcal}>{Math.round(m.kcal)} kcal</Text>
-                  </View>
-                ))}
-              </View>
-            </>
-          )}
-        </>
-      )}
-
-      {/* ── TAB FINANZAS ── */}
-      {activeTab === "finanzas" && (
-        <>
-          {loadingFinanzas ? (
-            <ActivityIndicator color="#C4918A" style={{ marginTop: 40 }} />
-          ) : !budget ? (
-            <View style={styles.emptyCard}>
-              <Icons.PiggyBankIcon size={48} color="#C4918A" weight="thin" />
-              <Text style={styles.emptyTitle}>Sin presupuesto configurado</Text>
-              <Text style={styles.emptySubtitle}>Configura tu presupuesto mensual para hacer seguimiento de tus gastos.</Text>
-              <TouchableOpacity style={styles.emptyBtn} onPress={() => setModalPresupuesto(true)}>
-                <Text style={styles.emptyBtnText}>Configurar presupuesto</Text>
-              </TouchableOpacity>
-            </View>
-          ) : (
-            <>
-              <View style={styles.card}>
-                <View style={styles.cardHeader}>
-                  <Text style={styles.cardTitle}>Presupuesto del mes</Text>
-                  <TouchableOpacity onPress={() => { setInputPresupuesto(budget.mensual.toString()); setModalPresupuesto(true); }}>
-                    <Icons.PencilSimpleIcon size={16} color="#C4918A" weight="bold" />
-                  </TouchableOpacity>
-                </View>
-                <View style={styles.kcalRow}>
-                  <Text style={styles.kcalConsumed}>{formatCOP(gastadoMes)}</Text>
-                  <Text style={styles.kcalTotal}> / {formatCOP(budget.mensual)}</Text>
-                </View>
-                <AnimatedProgressBar progress={pctGasto} color={gastoBarColor} />
-                <Text style={styles.kcalRemaining}>
-                  {disponible >= 0
-                    ? `Disponible: ${formatCOP(disponible)} · ${diasRestantes} días restantes`
-                    : `Excediste tu presupuesto en ${formatCOP(Math.abs(disponible))}`}
-                </Text>
-                <View style={styles.metricsRow}>
-                  <View style={styles.metricItem}>
-                    <Text style={styles.metricVal}>{formatCOP(promedioDiario)}</Text>
-                    <Text style={styles.metricLabel}>Promedio/día</Text>
-                  </View>
-                  <View style={[styles.metricItem, styles.metricBorder]}>
-                    <Text style={[styles.metricVal, { color: proyeccion > budget.mensual ? "#E63946" : "#2D6A4F" }]}>
-                      {formatCOP(proyeccion)}
-                    </Text>
-                    <Text style={styles.metricLabel}>Proyección</Text>
-                  </View>
-                  <View style={styles.metricItem}>
-                    <Text style={styles.metricVal}>{formatCOP(diasRestantes > 0 ? disponible / diasRestantes : 0)}</Text>
-                    <Text style={styles.metricLabel}>Recomend./día</Text>
-                  </View>
-                </View>
-              </View>
-
-              {transactions.length === 0 ? (
-                <View style={styles.emptyCard}>
-                  <Icons.ReceiptIcon size={36} color="#C4918A" weight="thin" />
-                  <Text style={styles.emptyTitle}>Sin gastos este mes</Text>
-                  <Text style={styles.emptySubtitle}>Los gastos se registran automáticamente al completar tu lista de compras.</Text>
-                </View>
-              ) : (
-                <View style={styles.card}>
-                  <Text style={[styles.cardTitle, { marginBottom: 14 }]}>Últimas transacciones</Text>
-                  {transactions.slice(0, 5).map((t) => {
-                    const fecha = t.fecha?.toDate?.();
-                    const fechaStr = fecha ? fecha.toLocaleDateString("es-CO", { day: "numeric", month: "short" }) : "";
-                    return (
-                      <View key={t.id} style={styles.mealRow}>
-                        <View style={styles.txIcon}>
-                          <Icons.ReceiptIcon size={16} color="#C4918A" weight="fill" />
-                        </View>
-                        <View style={styles.mealInfo}>
-                          <Text style={styles.mealName}>{t.descripcion}</Text>
-                          <Text style={styles.mealSlot}>{fechaStr} · {t.categoria}</Text>
-                        </View>
-                        <Text style={styles.mealKcal}>{formatCOP(t.monto)}</Text>
-                      </View>
-                    );
-                  })}
-                </View>
-              )}
-            </>
-          )}
-        </>
-      )}
-
-      <View style={{ height: 100 }} />
-    </Animated.ScrollView>
-
-    {/* FAB */}
-    <Animated.View style={[styles.fabContainer, fabStyle]}>
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push("/planificador" as any); }}
-      >
-        <Icons.PlusIcon size={24} color="#fff" weight="bold" />
-      </TouchableOpacity>
-    </Animated.View>
-
-    {/* MODAL PRESUPUESTO */}
-    <Modal visible={modalPresupuesto} transparent animationType="slide">
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>{budget ? "Editar presupuesto" : "Configurar presupuesto"}</Text>
-          <Text style={styles.modalLabel}>Presupuesto mensual (COP)</Text>
-          <TextInput
-            style={styles.modalInput}
-            placeholder="Ej: 400000"
-            keyboardType="numeric"
-            value={inputPresupuesto}
-            onChangeText={setInputPresupuesto}
-            placeholderTextColor="#aaa"
-          />
-          <TouchableOpacity style={styles.modalBtn} onPress={guardarPresupuesto}>
-            <Text style={styles.modalBtnText}>Guardar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => setModalPresupuesto(false)}>
-            <Text style={styles.modalCancel}>Cancelar</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  </SafeAreaView>
-);
+        </KeyboardAvoidingView>
+      </Modal>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
@@ -642,10 +745,32 @@ const styles = StyleSheet.create({
   mealKcal: { fontSize: 12, color: "#C4918A", fontWeight: "600" },
   addMealBtn: { backgroundColor: "#FFF4EE", paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   addMealText: { fontSize: 12, color: "#C4918A", fontWeight: "600" },
-  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#2c1810", marginBottom: 12 },
-  quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 16 },
+  sectionTitle: { fontSize: 16, fontWeight: "700", color: "#2c1810", marginBottom: 4 },
+  quickGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 20 },
   quickCard: { width: "47%", borderRadius: 16, padding: 16, alignItems: "center", gap: 8 },
   quickLabel: { fontSize: 12, fontWeight: "600", textAlign: "center" },
+
+  // ── Comunidad ─────────────────────────────────────────────────────────────
+  comunidadHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 12 },
+  comunidadSub: { fontSize: 11, color: "#aaa", marginTop: 2 },
+  comunidadVerTodo: { flexDirection: "row", alignItems: "center", gap: 4 },
+  comunidadVerTodoText: { fontSize: 12, color: "#C4918A", fontWeight: "600" },
+  comunidadScroll: { marginLeft: -20, paddingLeft: 20, marginBottom: 16 },
+  comunidadCard: { width: COMMUNITY_CARD_W, height: 160, borderRadius: 16, overflow: "hidden", marginRight: 10, position: "relative" },
+  comunidadCardImg: { width: "100%", height: "100%" },
+  comunidadCardImgPlaceholder: { backgroundColor: "#F0EAE7", justifyContent: "center", alignItems: "center" },
+  comunidadCardOverlay: { position: "absolute", width: "100%", height: "100%", backgroundColor: "rgba(0,0,0,0.32)" },
+  comunidadCardInfo: { position: "absolute", bottom: 0, left: 0, right: 0, padding: 10 },
+  comunidadCardTitulo: { fontSize: 12, fontWeight: "700", color: "#fff", lineHeight: 16, marginBottom: 2 },
+  comunidadCardAutor: { fontSize: 10, color: "rgba(255,255,255,0.8)", textDecorationLine: "underline", marginBottom: 2 },
+  comunidadCardKcal: { fontSize: 9, color: "rgba(255,255,255,0.7)" },
+  comunidadCardVerMas: { width: 80, height: 160, borderRadius: 16, backgroundColor: "#FFF4EE", justifyContent: "center", alignItems: "center", gap: 6, marginRight: 10 },
+  comunidadCardVerMasText: { fontSize: 12, color: "#C4918A", fontWeight: "700", textAlign: "center" },
+  comunidadEmpty: { backgroundColor: "#fff", borderRadius: 16, padding: 24, alignItems: "center", gap: 8, marginBottom: 16 },
+  comunidadEmptyText: { fontSize: 13, color: "#aaa", textAlign: "center" },
+  comunidadEmptyBtn: { backgroundColor: "#FFF4EE", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginTop: 4 },
+  comunidadEmptyBtnText: { fontSize: 12, color: "#C4918A", fontWeight: "600" },
+
   emptyCard: { backgroundColor: "#fff", borderRadius: 20, padding: 32, alignItems: "center", gap: 10, marginBottom: 16, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
   emptyTitle: { fontSize: 16, fontWeight: "700", color: "#2c1810", textAlign: "center" },
   emptySubtitle: { fontSize: 13, color: "#aaa", textAlign: "center", lineHeight: 20 },

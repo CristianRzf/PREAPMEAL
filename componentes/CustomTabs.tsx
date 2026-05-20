@@ -1,12 +1,11 @@
-import { View, Text, Pressable, StyleSheet, Platform } from 'react-native';
-import { collection, onSnapshot } from 'firebase/firestore';
-import { auth, db } from '../config/firebase';
-import { useLinkBuilder } from '@react-navigation/native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { collection, onSnapshot } from 'firebase/firestore';
 import * as Icons from 'phosphor-react-native';
 import * as React from 'react';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { auth, db } from '../config/firebase';
 
 const PRIMARY = '#2c1810';
 const INACTIVE = '#AAAAAA';
@@ -22,10 +21,13 @@ const TAB_CONFIG: Record<string, { icon: string; label: string }> = {
   Perfil:         { icon: 'UserCircle',           label: 'Perfil' },
 };
 
-function TabItem({ route, isFocused, onPress, urgentCount }: { route: any; isFocused: boolean; onPress: () => void; urgentCount: number }) {
+function TabItem({ route, isFocused, onPress, urgentCount }: {
+  route: any; isFocused: boolean; onPress: () => void; urgentCount: number
+}) {
   const scale = useSharedValue(1);
   const config = TAB_CONFIG[route.name];
-  const IconComp = config ? (Icons as any)[`${config.icon}Icon`] : null;
+  if (!config) return null; // oculta tabs sin config (comunidad, perfilPublico, etc.)
+  const IconComp = (Icons as any)[`${config.icon}Icon`];
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
@@ -42,20 +44,18 @@ function TabItem({ route, isFocused, onPress, urgentCount }: { route: any; isFoc
     >
       <Animated.View style={[styles.iconWrapper, animatedStyle]}>
         <View style={{ position: 'relative' }}>
-        {IconComp && (
-          <IconComp
-            size={24}
-            weight={isFocused ? 'fill' : 'regular'}
-            color={isFocused ? PRIMARY : INACTIVE}
-          />
-        )}
-        {route.name === 'inventario' && urgentCount > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {urgentCount}
-            </Text>
-          </View>
-        )}
+          {IconComp && (
+            <IconComp
+              size={24}
+              weight={isFocused ? 'fill' : 'regular'}
+              color={isFocused ? PRIMARY : INACTIVE}
+            />
+          )}
+          {route.name === 'inventario' && urgentCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{urgentCount}</Text>
+            </View>
+          )}
         </View>
         <Text style={[styles.label, { color: isFocused ? PRIMARY : INACTIVE }]}>
           {config?.label}
@@ -67,9 +67,11 @@ function TabItem({ route, isFocused, onPress, urgentCount }: { route: any; isFoc
 
 export default function CustomTabs({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
-  const { buildHref } = useLinkBuilder();
 
-  const tabCount = state.routes.length;
+  // Solo tabs visibles (los que tienen config en TAB_CONFIG)
+  const visibleRoutes = state.routes.filter((r) => TAB_CONFIG[r.name]);
+  const tabCount = visibleRoutes.length;
+
   const sliderX = useSharedValue(0);
   const [tabWidth, setTabWidth] = React.useState(0);
 
@@ -77,45 +79,30 @@ export default function CustomTabs({ state, navigation }: BottomTabBarProps) {
   React.useEffect(() => {
     const user = auth.currentUser;
     if (!user) return;
-
-    const ref = collection(
-      db,
-      'users',
-      user.uid,
-      'pantry_inventory'
-    );
-
+    const ref = collection(db, 'users', user.uid, 'pantry_inventory');
     const unsubscribe = onSnapshot(ref, (snapshot) => {
-
       const urgent = snapshot.docs.filter((doc) => {
         const data = doc.data();
-
         if (!data.expirationDate) return false;
-
         const today = new Date();
         const expiration = new Date(data.expirationDate);
-
-        const diffTime =
-          expiration.getTime() - today.getTime();
-
-        const days = Math.ceil(
-          diffTime / (1000 * 60 * 60 * 24)
-        );
-
+        const diffTime = expiration.getTime() - today.getTime();
+        const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
         return days <= 2 && days >= 0;
       });
-
       setUrgentCount(urgent.length);
     });
-
     return unsubscribe;
   }, []);
 
+  // Índice visible actual
+  const visibleIndex = visibleRoutes.findIndex((r) => r.key === state.routes[state.index]?.key);
+
   React.useEffect(() => {
-    if (tabWidth > 0) {
-      sliderX.value = withSpring(state.index * tabWidth, SLIDER_SPRING);
+    if (tabWidth > 0 && visibleIndex >= 0) {
+      sliderX.value = withSpring(visibleIndex * tabWidth, SLIDER_SPRING);
     }
-  }, [state.index, tabWidth]);
+  }, [visibleIndex, tabWidth]);
 
   const sliderStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: sliderX.value }],
@@ -130,10 +117,9 @@ export default function CustomTabs({ state, navigation }: BottomTabBarProps) {
       onLayout={(e) => {
         const w = e.nativeEvent.layout.width / tabCount;
         setTabWidth(w);
-        sliderX.value = state.index * w;
+        if (visibleIndex >= 0) sliderX.value = visibleIndex * w;
       }}
     >
-      {/* Slider superior */}
       {tabWidth > 0 && (
         <Animated.View
           style={[styles.slider, { width: tabWidth }, sliderStyle]}
@@ -141,15 +127,23 @@ export default function CustomTabs({ state, navigation }: BottomTabBarProps) {
         />
       )}
 
-      {state.routes.map((route, index) => {
-        const isFocused = state.index === index;
+      {visibleRoutes.map((route) => {
+        const isFocused = state.routes[state.index]?.key === route.key;
         const onPress = () => {
           const event = navigation.emit({ type: 'tabPress', target: route.key, canPreventDefault: true });
           if (!isFocused && !event.defaultPrevented) {
             navigation.navigate(route.name, route.params);
           }
         };
-        return <TabItem key={route.key} route={route} isFocused={isFocused} onPress={onPress} urgentCount={urgentCount}/>;
+        return (
+          <TabItem
+            key={route.key}
+            route={route}
+            isFocused={isFocused}
+            onPress={onPress}
+            urgentCount={urgentCount}
+          />
+        );
       })}
     </View>
   );
@@ -186,7 +180,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '500',
   },
-   badge: {
+  badge: {
     position: 'absolute',
     top: -6,
     right: -10,
@@ -198,7 +192,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 4,
   },
-
   badgeText: {
     color: '#fff',
     fontSize: 10,
