@@ -8,6 +8,7 @@ import {
   getDoc,
   getDocs,
   getFirestore,
+  onSnapshot,
   orderBy,
   query,
   setDoc,
@@ -140,7 +141,7 @@ const chipStyles = StyleSheet.create({
   chipTextActive: { color: COLORS.card, fontWeight: "700" },
 });
 
-// ─── Mini card para Guardadas / Me gusta ──────────────────────────────────────
+// ─── Mini card ────────────────────────────────────────────────────────────────
 function RecetaMiniCard({ receta }: { receta: RecetaItem }) {
   return (
     <View style={miniStyles.container}>
@@ -184,11 +185,14 @@ export default function Perfil() {
   const [misRecetas, setMisRecetas] = useState<RecetaItem[]>([]);
   const [loadingRecetas, setLoadingRecetas] = useState(false);
 
-  // ── Liked y Saved ─────────────────────────────────────────────────────────
   const [likedRecetas, setLikedRecetas] = useState<RecetaItem[]>([]);
   const [savedRecetas, setSavedRecetas] = useState<RecetaItem[]>([]);
   const [loadingLiked, setLoadingLiked] = useState(false);
   const [loadingSaved, setLoadingSaved] = useState(false);
+
+  // ── Contadores dinámicos ──────────────────────────────────────────────────
+  const [seguidores, setSeguidores] = useState(0);
+  const [siguiendo, setSiguiendo] = useState(0);
 
   const [form, setForm] = useState<PerfilData>({
     displayName: "", username: "", edad: "", peso: "",
@@ -196,6 +200,26 @@ export default function Perfil() {
   });
 
   useEffect(() => { fetchUser(); }, []);
+
+  // ── Suscripciones en tiempo real a followers y following ─────────────────
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubFollowers = onSnapshot(
+      collection(db, "users", user.uid, "followers"),
+      (snap) => setSeguidores(snap.size)
+    );
+
+    const unsubFollowing = onSnapshot(
+      collection(db, "users", user.uid, "following"),
+      (snap) => setSiguiendo(snap.size)
+    );
+
+    return () => {
+      unsubFollowers();
+      unsubFollowing();
+    };
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -385,22 +409,22 @@ export default function Perfil() {
           )}
         </View>
 
-        {/* Stats */}
+        {/* Stats — ahora dinámicos ─────────────────────────────────────── */}
         <View style={styles.statsRow}>
-          <View style={styles.statItem}>
+          <TouchableOpacity style={styles.statItem} onPress={() => setActiveTab("Recetas")}>
             <Text style={styles.statNumber}>{misRecetas.length}</Text>
             <Text style={styles.statLabel}>Recetas</Text>
-          </View>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{likedRecetas.length}</Text>
-            <Text style={styles.statLabel}>Me gusta</Text>
-          </View>
+          <TouchableOpacity style={styles.statItem}>
+            <Text style={styles.statNumber}>{seguidores}</Text>
+            <Text style={styles.statLabel}>Seguidores</Text>
+          </TouchableOpacity>
           <View style={styles.statDivider} />
-          <View style={styles.statItem}>
-            <Text style={styles.statNumber}>{savedRecetas.length}</Text>
-            <Text style={styles.statLabel}>Guardadas</Text>
-          </View>
+          <TouchableOpacity style={styles.statItem}>
+            <Text style={styles.statNumber}>{siguiendo}</Text>
+            <Text style={styles.statLabel}>Siguiendo</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Botón editar */}
