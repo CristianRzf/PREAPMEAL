@@ -420,13 +420,22 @@ export default function Planificador() {
     { calorias: 0, proteinas: 0, diasCompletos: 0 },
   );
 
-  const calPromedioSemana = Math.round(resumenSemanal.calorias / 7);
-  const proteinasSemana = Math.round(resumenSemanal.proteinas);
-  const recetasUnicas = new Set(
-    Object.values(plan).flatMap((day) =>
-      Object.values(day || {}).filter(Boolean).map((s) => (s as SlotComida).recetaId),
-    ),
-  ).size;
+const diasConComidas = weekDates.filter((date) => {
+  const key = dateKey(date);
+  return Object.values(plan[key] || {}).filter(Boolean).length > 0;
+}).length;
+
+const calPromedioSemana = Math.round(
+  resumenSemanal.calorias / (diasConComidas || 1)
+);
+const proteinasSemana = Math.round(
+  resumenSemanal.proteinas / (diasConComidas || 1)
+);
+const recetasUnicas = new Set(
+  Object.values(plan).flatMap((day) =>
+    Object.values(day || {}).filter(Boolean).map((s) => (s as SlotComida).recetaId),
+  ),
+).size;
 
   const selectedKey = dateKey(selectedDay);
   const dayPlan = plan[selectedKey] || {};
@@ -462,8 +471,8 @@ export default function Planificador() {
             <Text style={styles.statLabel}>Proteína</Text>
           </View>
           <View style={[styles.statCard, { backgroundColor: COLORS.cardDark }]}>
-            <Text style={styles.statNumber}>{recetasUnicas}</Text>
-            <Text style={styles.statLabel}>Recetas</Text>
+            <Text style={styles.statNumber}>{diasConComidas}/7</Text>
+            <Text style={styles.statLabel}>Días</Text>
           </View>
         </View>
 
