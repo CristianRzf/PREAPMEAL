@@ -7,14 +7,20 @@ admin.initializeApp({
 });
 const db = admin.firestore();
  
-function parsearIngredientes(texto) {
-  if (!texto) return [];
-  return texto.split(";").map((item) => {
-    const partes = item.trim().split(" ");
-    const nombre = partes[0] || "";
-    const cantidad = parseFloat(partes[1]) || 0;
-    const unidad = partes[2] || "";
-    return { nombre, cantidad, unidad, precio: 0 };
+function parsearIngredientes(ingredientesTexto, preciosTexto) {
+  if (!ingredientesTexto) return [];
+  const ings = ingredientesTexto.split(";").map((i) => i.trim());
+  const precios = preciosTexto
+    ? preciosTexto.split(";").map((p) => parseInt(p.trim()) || 0)
+    : [];
+  return ings.map((item, i) => {
+    const partes = item.split(" ");
+    return {
+      nombre: partes[0] || "",
+      cantidad: parseFloat(partes[1]) || 0,
+      unidad: partes[2] || "",
+      precio: precios[i] || 0,
+    };
   });
 }
  
@@ -63,6 +69,9 @@ async function main() {
     }
  
     try {
+      const ingredientes = parsearIngredientes(fila.ingredientes, fila.precios);
+      const totalEstimado = ingredientes.reduce((a, i) => a + i.precio, 0);
+ 
       await db.collection("recipes").add({
         tipo: "seed",
         fuente: "colombiana",
@@ -82,13 +91,14 @@ async function main() {
         porciones: Number(fila.porciones) || 2,
         mealType: fila.mealType?.trim() || "almuerzo",
         tipo_array: [fila.mealType?.trim() || "almuerzo"],
-        ingredientes: parsearIngredientes(fila.ingredientes),
+        ingredientes,
         instrucciones: parsearInstrucciones(fila.instrucciones),
+        totalEstimado,
         vegetariano: false,
         vegano: false,
         sinGluten: false,
       });
-      console.log(`Subida: ${titulo}`);
+      console.log(`Subida: ${titulo} (estimado: $${totalEstimado.toLocaleString("es-CO")})`);
       exitosas++;
     } catch (err) {
       console.log(`Error con ${titulo}: ${err.message}`);
@@ -103,3 +113,4 @@ async function main() {
 }
  
 main().catch((err) => { console.error(err); process.exit(1); });
+ 
