@@ -148,10 +148,25 @@ export default function Inventario() {
     const ref = collection(db, "users", user.uid, "pantry_inventory");
 
     const unsubscribe = onSnapshot(ref, (snapshot) => {
-      const data: Item[] = snapshot.docs.map((doc) => ({
+    const data: Item[] = snapshot.docs.map((doc) => {
+      const item = doc.data() as Omit<Item, "id">;
+
+      let expirationDays = 0;
+      if (item.expirationDate) {
+        const today = new Date();
+        const expiration = new Date(item.expirationDate);
+        const diffTime = 
+          expiration.getTime() - today.getTime();
+        expirationDays = Math.ceil(
+          diffTime / (1000 * 60 * 60 * 24)
+        );
+      }
+      return {
         id: doc.id,
-        ...(doc.data() as Omit<Item, "id">),
-      }));
+        ...item,
+        expirationDays,
+      };  
+      });
 
       // ORDENAR POR URGENCIA
       data.sort((a, b) => a.expirationDays - b.expirationDays);
@@ -371,7 +386,6 @@ export default function Inventario() {
         category: newCategory,
         notes: newNotes,
         photoUrl: newPhotoUrl || undefined,
-        expirationDays: Number(newDays),
         expirationDate: expirationDate?.toISOString(),
         notificationIds,
       });
@@ -383,7 +397,6 @@ export default function Inventario() {
         category: newCategory,
         notes: newNotes,
         photoUrl: newPhotoUrl || undefined,
-        expirationDays: Number(newDays),
         expirationDate: expirationDate?.toISOString(),
         notificationIds,
       });
