@@ -1,47 +1,99 @@
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "../../config/firebase";
+import * as Google from "expo-auth-session/providers/google";
 import { router } from "expo-router";
-import { useState } from "react";
+import * as WebBrowser from "expo-web-browser";
+import * as AuthSession from "expo-auth-session";
+import {
+  GoogleAuthProvider,
+  signInWithCredential,
+  signInWithEmailAndPassword,
+} from "firebase/auth";
+import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
+import { auth } from "../../config/firebase";
 
+
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Google Auth
+ const redirectUri = AuthSession.makeRedirectUri({
+  scheme: "preapmeal",
+});
+
+const [request, response, promptAsync] = Google.useAuthRequest({
+  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+  redirectUri,
+});
+
+  useEffect(() => {
+    if (response?.type === "success") {
+      const { id_token } = response.params;
+      if (id_token) {
+        handleGoogleFirebaseLogin(id_token);
+      }
+    }
+  }, [response]);
+
+  const handleGoogleFirebaseLogin = async (idToken: string) => {
+    setLoading(true);
+    try {
+      const credential = GoogleAuthProvider.credential(idToken);
+      const userCredential = await signInWithCredential(auth, credential);
+      router.replace("/(tabs)");
+      alert(
+        "¡Inicio de sesión con Google exitoso! Bienvenido " +
+          userCredential.user?.email,
+      );
+    } catch (error: any) {
+      alert("Error al iniciar sesión con Google: " + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogin = async () => {
     if (!email || !password) {
-      alert("Por favor ingresa email y contraseña"); 
+      alert("Por favor ingresa email y contraseña");
       return;
     }
 
     setLoading(true);
 
     try {
-  const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(
+        auth,
+        email,
+        password,
+      );
 
-
-    router.replace("/(tabs)"); // Redirige a la pantalla principal después de iniciar sesión
-    console.log("Usuario logueado:", userCredential.user?.email);
-    alert("¡Inicio de sesión exitoso! Bienvenido " + userCredential.user?.email);
-    // No hace falta navegar manualmente.a
-    // RootLayout detectará el usuario y redirigirá a (app)
+      router.replace("/(tabs)"); // Redirige a la pantalla principal después de iniciar sesión
+      console.log("Usuario logueado:", userCredential.user?.email);
+      alert(
+        "¡Inicio de sesión exitoso! Bienvenido " + userCredential.user?.email,
+      );
+      // No hace falta navegar manualmente.a
+      // RootLayout detectará el usuario y redirigirá a (app)
     } catch (error: any) {
       alert("Error al iniciar sesión: " + error.message);
     } finally {
       setLoading(false);
     }
   };
-
 
   return (
     <View style={styles.container}>
@@ -94,7 +146,7 @@ export default function Login() {
       </TouchableOpacity>
 
       {/* Forgot password */}
-      <TouchableOpacity onPress={() => router.push("/recuperar" as any)}>         
+      <TouchableOpacity onPress={() => router.push("/recuperar" as any)}>
         <Text style={styles.forgot}>¿Olvidaste tu contraseña?</Text>
       </TouchableOpacity>
 
@@ -106,7 +158,11 @@ export default function Login() {
       </View>
 
       {/* Google */}
-      <TouchableOpacity style={styles.googleButton}>
+      <TouchableOpacity
+        style={styles.googleButton}
+        onPress={() => promptAsync()}
+        disabled={!request || loading}
+      >
         <Image
           source={{
             uri: "https://cdn-icons-png.flaticon.com/512/2991/2991148.png",
