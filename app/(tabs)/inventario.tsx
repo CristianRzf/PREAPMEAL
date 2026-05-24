@@ -651,6 +651,14 @@ export default function Inventario() {
         {/* MODAL */}
         <Modal visible={modalVisible} animationType="slide" transparent>
           <View style={styles.modalOverlay}>
+           <ScrollView
+              contentContainerStyle={{ 
+                flexGrow: 1, 
+                justifyContent: "center" 
+              }}
+              showsVerticalScrollIndicator={false}
+            >
+            
             <View style={styles.modalContent}>
               <Text style={styles.modalTitle}>
                 {editingItem ? "Editar Item" : "Nuevo Item"}
@@ -834,6 +842,7 @@ export default function Inventario() {
                 <Text style={styles.cancelText}>Cancelar</Text>
               </TouchableOpacity>
             </View>
+           </ScrollView>
           </View>
         </Modal>
       </View>
@@ -963,7 +972,8 @@ const styles = StyleSheet.create({
 
   filterBtn: {
     flex: 1,
-    padding: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     marginHorizontal: 4,
     borderRadius: 10,
     backgroundColor: "#eee",
@@ -976,11 +986,13 @@ const styles = StyleSheet.create({
 
   filterText: {
     color: "#555",
+    fontSize: 12,
   },
 
   activeText: {
     color: "#fff",
     fontWeight: "bold",
+    fontSize: 12,
   },
 
   itemCard: {

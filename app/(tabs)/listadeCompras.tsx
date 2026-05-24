@@ -7,7 +7,8 @@ import {
     orderBy,
     query,
     serverTimestamp,
-    updateDoc
+    updateDoc,
+    Timestamp
 } from "firebase/firestore";
 import * as Icons from "phosphor-react-native";
 import { useEffect, useRef, useState } from "react";
@@ -63,7 +64,7 @@ type ItemCompra = {
 type Lista = {
   id: string;
   items: ItemCompra[];
-  creadoEn: any;
+  creadoEn: Timestamp;
   completada: boolean;
   totalEstimado: number;
 };
