@@ -8,7 +8,8 @@ import {
   setDoc,
 } from "firebase/firestore";
 import * as Icons from "phosphor-react-native";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   ActivityIndicator,
   Dimensions,
@@ -117,10 +118,12 @@ export default function Home() {
   const scale = useSharedValue(0);
   const statsOpacity = useSharedValue(0);
 
-  useEffect(() => {
+useFocusEffect(
+  useCallback(() => {
     if (tab === "nutricion") setActiveTab("nutricion");
     else if (tab === "finanzas") setActiveTab("finanzas");
-  }, [tab]);
+  }, [tab])
+);
 
   const [inventoryCount, setInventoryCount] = useState(0);
   const [expiringCount, setExpiringCount] = useState(0);
