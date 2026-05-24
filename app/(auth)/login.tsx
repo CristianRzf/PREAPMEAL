@@ -3,26 +3,26 @@ import * as Google from "expo-auth-session/providers/google";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import {
-  GoogleAuthProvider,
-  signInWithCredential,
-  signInWithEmailAndPassword,
+    GoogleAuthProvider,
+    signInWithCredential,
+    signInWithEmailAndPassword,
 } from "firebase/auth";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { auth } from "../../config/firebase";
 import {
-  FORM_LIMITS,
-  isValidEmail,
-  limitText,
-  normalizeEmail,
+    FORM_LIMITS,
+    isValidEmail,
+    limitText,
+    normalizeEmail,
 } from "../../utils/formValidators";
 
 WebBrowser.maybeCompleteAuthSession();
@@ -85,6 +85,9 @@ export default function Login() {
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    iosClientId:
+      process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID ??
+      process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
     redirectUri,
   });
