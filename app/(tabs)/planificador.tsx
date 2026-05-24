@@ -1,5 +1,5 @@
 import { router, Stack } from "expo-router";
-import { getAuth } from "firebase/auth";
+import { getAuth, onAuthStateChanged } from "firebase/auth";
 import {
     addDoc,
     collection,
@@ -38,13 +38,13 @@ interface Receta {
   nombre: string;
   imagen: string;
   calorias: number;
-  proteinas: number;
-  carbohidratos: number;
-  grasas: number;
+  proteinas?: number;
+  carbohidratos?: number;
+  grasas?: number;
   tiempo: number;
   dificultad: string;
   tipo: MealType[];
-  ingredientes: {
+  ingredientes?: {
     nombre: string;
     cantidad: number;
     unidad: string;
@@ -99,11 +99,11 @@ const COLORS = {
 function getWeekDates(offset: number): Date[] {
   const today = new Date();
   const day = today.getDay();
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - day + 1 + offset * 7);
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - day + offset * 7);
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(monday);
-    d.setDate(monday.getDate() + i);
+    const d = new Date(weekStart);
+    d.setDate(weekStart.getDate() + i);
     return d;
   });
 }
@@ -168,7 +168,17 @@ export default function Planificador() {
 
   const db = getFirestore();
   const auth = getAuth();
-  const userId = auth.currentUser?.uid;
+  const [userId, setUserId] = useState<string | null>(
+    auth.currentUser?.uid ?? null,
+  );
+
+  useEffect(() => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
+      setUserId(user?.uid ?? null);
+    });
+
+    return unsubscribeAuth;
+  }, []);
 
   useEffect(() => {
     setWeekDates(getWeekDates(weekOffset));
@@ -178,32 +188,60 @@ export default function Planificador() {
   }, [weekDates, userId]);
   useEffect(() => {
     cargarRecetasFirestore();
-  }, []);
+  }, [userId]);
 
   // ─── Carga recetas de recipes en planificador
   const cargarRecetasFirestore = async () => {
     setCargandoRecetas(true);
     try {
-      const q = query(collection(db, "recipes"), orderBy("creadoEn", "desc"));
-      const snap = await getDocs(q);
-      const lista: Receta[] = snap.docs.map((d) => {
-        const data = d.data();
-        return {
-          id: d.id,
-          nombre: data.titulo || data.nombre || "Sin nombre",
-          imagen: data.imagen || "",
-          calorias: data.calorias || 0,
-          proteinas: data.proteinas || 0,
-          carbohidratos: data.carbohidratos || 0,
-          grasas: data.grasas || 0,
-          tiempo: data.tiempo || 30,
-          dificultad: data.dificultad || "fácil",
-          tipo: normalizarTipo(data),
-          ingredientes: Array.isArray(data.ingredientes)
-            ? data.ingredientes
-            : [],
-        };
+      const consultas = [
+        getDocs(query(collection(db, "recipes"), orderBy("creadoEn", "desc"))),
+        getDocs(
+          query(collection(db, "public_recipes"), orderBy("creadoEn", "desc")),
+        ),
+      ];
+
+      if (userId) {
+        consultas.push(
+          getDocs(
+            query(
+              collection(db, "users", userId, "recipes"),
+              orderBy("creadoEn", "desc"),
+            ),
+          ),
+        );
+      }
+
+      const resultados = await Promise.all(consultas);
+      const lista: Receta[] = [];
+      const vistos = new Set<string>();
+
+      resultados.forEach((snap, sourceIndex) => {
+        snap.docs.forEach((d) => {
+          const data = d.data() as any;
+          const receta = {
+            id: `${sourceIndex}-${d.id}`,
+            nombre: data.titulo || data.nombre || "Sin nombre",
+            imagen: data.imagen || "",
+            calorias: Number(data.calorias) || 0,
+            proteinas: Number(data.proteinas) || 0,
+            carbohidratos: Number(data.carbohidratos) || 0,
+            grasas: Number(data.grasas) || 0,
+            tiempo: Number(data.tiempo) || 30,
+            dificultad: data.dificultad || "fácil",
+            tipo: normalizarTipo(data),
+            ingredientes: Array.isArray(data.ingredientes)
+              ? data.ingredientes
+              : [],
+          };
+
+          const uniqueKey = `${receta.nombre}-${receta.imagen}-${receta.tiempo}-${receta.calorias}`;
+          if (vistos.has(uniqueKey)) return;
+          vistos.add(uniqueKey);
+          lista.push(receta);
+        });
       });
+
       setRecetasFirestore(lista);
     } catch (e) {
       console.error("Error cargando recetas:", e);
@@ -281,10 +319,10 @@ export default function Planificador() {
       recetaId: recetaSeleccionada.id,
       nombre: recetaSeleccionada.nombre,
       imagen: recetaSeleccionada.imagen,
-      calorias: recetaSeleccionada.calorias,
-      proteinas: recetaSeleccionada.proteinas,
-      carbohidratos: recetaSeleccionada.carbohidratos,
-      grasas: recetaSeleccionada.grasas,
+      calorias: Number(recetaSeleccionada.calorias) || 0,
+      proteinas: Number(recetaSeleccionada.proteinas ?? 0) || 0,
+      carbohidratos: Number(recetaSeleccionada.carbohidratos ?? 0) || 0,
+      grasas: Number(recetaSeleccionada.grasas ?? 0) || 0,
       porciones,
     };
     await guardarSlot(slotActual.fecha, slotActual.meal, slot);
@@ -407,6 +445,13 @@ export default function Planificador() {
         ...ing,
         comprado: false,
       }));
+      if (items.length === 0) {
+        Alert.alert(
+          "Sin ingredientes",
+          "Las recetas planificadas no tienen ingredientes registrados para generar una lista de compras.",
+        );
+        return;
+      }
       await addDoc(collection(db, "users", userId, "listas"), {
         items,
         creadoEn: serverTimestamp(),
