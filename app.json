@@ -4,7 +4,7 @@
     "slug": "Mealprep-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon2.png",
+    "icon": "./assets/images/logo_android.png",
     "scheme": "mealprepapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -39,7 +39,8 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#232323",
-          "image": "./assets/images/splash-icon.png",
+          "image": "./assets/images/logo_android.png",
+
           "dark": {
             "image": "./assets/images/splash-icon-dark.png",
             "backgroundColor": "#000000"
