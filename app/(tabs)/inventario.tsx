@@ -1,5 +1,6 @@
-import Constants from "expo-constants";
 import DateTimePicker from "@react-native-community/datetimepicker";
+import Constants from "expo-constants";
+import * as ImagePicker from "expo-image-picker";
 import * as Notifications from "expo-notifications";
 import {
   addDoc,
@@ -11,10 +12,12 @@ import {
 } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
-  ScrollView,
   Image,
   Modal,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -24,6 +27,51 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { auth, db } from "../../config/firebase";
 
+const CLOUDINARY_CLOUD_NAME = "dbbsgfsr6";
+const CLOUDINARY_UPLOAD_PRESET = "mealprep_uploads";
+const CLOUDINARY_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+const MAX_ITEM_PHOTO_SIZE = 5 * 1024 * 1024;
+
+async function validarImagenItem(uri: string) {
+  const response = await fetch(uri);
+  const blob = await response.blob();
+
+  if (blob.size > MAX_ITEM_PHOTO_SIZE) {
+    throw new Error("La imagen supera el límite de 5 MB.");
+  }
+
+  if (blob.type && !blob.type.startsWith("image/")) {
+    throw new Error("El archivo seleccionado no es una imagen válida.");
+  }
+}
+
+async function subirImagenCloudinary(uri: string): Promise<string> {
+  const formData = new FormData();
+
+  if (Platform.OS === "web") {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    formData.append("file", blob);
+  } else {
+    const filename = uri.split("/").pop() || "photo.jpg";
+    const match = /\.(\w+)$/.exec(filename);
+    const type = match ? `image/${match[1]}` : "image/jpeg";
+    formData.append("file", { uri, name: filename, type } as any);
+  }
+
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+  const response = await fetch(CLOUDINARY_URL, {
+    method: "POST",
+    body: formData,
+  });
+  if (!response.ok)
+    throw new Error(`Cloudinary error: ${await response.text()}`);
+
+  const data = await response.json();
+  return data.secure_url;
+}
+
 type Item = {
   id: string;
   name: string;
@@ -32,15 +80,16 @@ type Item = {
   expirationDays: number;
   expirationDate?: string;
   notificationIds?: string[];
-  category?: string,
-  notes?: string,
+  category?: string;
+  notes?: string;
+  photoUrl?: string;
 };
 
 export default function Inventario() {
   const [search, setSearch] = useState("");
-  const [filter, setFilter] = useState<"todos" | "Nevera" | "Despensa" | "Congelador">(
-    "todos",
-  );
+  const [filter, setFilter] = useState<
+    "todos" | "Nevera" | "Despensa" | "Congelador"
+  >("todos");
   const [modalVisible, setModalVisible] = useState(false);
   const [editingItem, setEditingItem] = useState<Item | null>(null);
 
@@ -50,7 +99,7 @@ export default function Inventario() {
     Nevera: true,
     Despensa: true,
     Congelador: true,
-  })
+  });
 
   const [newName, setNewName] = useState("");
 
@@ -59,21 +108,21 @@ export default function Inventario() {
 
   const [newCategory, setNewCategory] = useState("");
   const [newNotes, setNewNotes] = useState("");
+  const [newPhotoUrl, setNewPhotoUrl] = useState("");
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
 
-  const [newLocation, setNewLocation] = useState<"Nevera" | "Despensa" | "Congelador">(
-    "Nevera",
-  );
+  const [newLocation, setNewLocation] = useState<
+    "Nevera" | "Despensa" | "Congelador"
+  >("Nevera");
   const [newDays, setNewDays] = useState("");
   const [expirationDate, setExpirationDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   const calculateDays = (date: Date) => {
-  const today = new Date();
-  const diffTime = date.getTime() - today.getTime();
-  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-};
-
+    const today = new Date();
+    const diffTime = date.getTime() - today.getTime();
+    return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  };
 
   useEffect(() => {
     const isExpoGo = Constants.appOwnership === "expo";
@@ -113,8 +162,10 @@ export default function Inventario() {
     return unsubscribe;
   }, []);
 
-
-  const scheduleNotifications = async (itemName: string, date: Date): Promise<string[]> => {
+  const scheduleNotifications = async (
+    itemName: string,
+    date: Date,
+  ): Promise<string[]> => {
     const isExpoGo = Constants.appOwnership === "expo";
     if (isExpoGo) return [];
 
@@ -134,9 +185,10 @@ export default function Inventario() {
         title: "⚠️ Producto por vencer",
         body: `${itemName} vence mañana`,
       },
-      trigger: { 
-        seconds: secondBefore,
-      } as any,
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: before,
+      },
     });
 
     const secondsExact = Math.max(
@@ -149,9 +201,10 @@ export default function Inventario() {
         title: "❌ Producto vencido",
         body: `${itemName} ya venció`,
       },
-      trigger: { 
-        seconds: secondsExact
-       }  as any,
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date,
+      },
     });
 
     ids.push(id1, id2);
@@ -162,7 +215,7 @@ export default function Inventario() {
     if (!ids) return;
     for (let id of ids) {
       await Notifications.cancelScheduledNotificationAsync(id);
-    } 
+    }
   };
 
   const openEditModal = (item: Item) => {
@@ -174,18 +227,119 @@ export default function Inventario() {
     setNewUnit(parts[1] || "");
     setNewCategory(item.category || "");
     setNewNotes(item.notes || "");
+    setNewPhotoUrl(item.photoUrl || "");
     setNewLocation(item.location);
     setNewDays(item.expirationDays.toString());
 
-      if (item.expirationDate) {
-        setExpirationDate(new Date(item.expirationDate));
-      }
+    if (item.expirationDate) {
+      setExpirationDate(new Date(item.expirationDate));
+    }
 
     setModalVisible(true);
   };
 
+  const openAddModal = () => {
+    setEditingItem(null);
+    setNewName("");
+    setNewQtyNumber("");
+    setNewUnit("");
+    setNewCategory("");
+    setNewNotes("");
+    setNewPhotoUrl("");
+    setNewLocation("Nevera");
+    setNewDays("");
+    setExpirationDate(null);
+    setModalVisible(true);
+  };
+
+  const uploadItemPhoto = async (uri: string) => {
+    setUploadingPhoto(true);
+    try {
+      await validarImagenItem(uri);
+      const uploadedUrl = await subirImagenCloudinary(uri);
+      setNewPhotoUrl(uploadedUrl);
+    } catch (error) {
+      console.error(error);
+      Alert.alert(
+        "Error",
+        error instanceof Error
+          ? error.message
+          : "No se pudo subir la foto del item.",
+      );
+    } finally {
+      setUploadingPhoto(false);
+    }
+  };
+
+  const removeItemPhoto = () => {
+    setNewPhotoUrl("");
+  };
+
+  const pickItemPhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permission.status !== "granted") {
+      Alert.alert(
+        "Permiso requerido",
+        "Necesitamos acceso a tu galería para elegir la foto.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.75,
+    });
+
+    if (result.canceled) return;
+
+    const uri = result.assets[0]?.uri;
+    if (!uri) return;
+
+    await uploadItemPhoto(uri);
+  };
+
+  const takeItemPhoto = async () => {
+    const permission = await ImagePicker.requestCameraPermissionsAsync();
+    if (permission.status !== "granted") {
+      Alert.alert(
+        "Permiso requerido",
+        "Necesitamos acceso a tu cámara para tomar la foto.",
+      );
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.75,
+    });
+
+    if (result.canceled) return;
+
+    const uri = result.assets[0]?.uri;
+    if (!uri) return;
+
+    await uploadItemPhoto(uri);
+  };
+
+  const openPhotoOptions = () => {
+    if (uploadingPhoto) return;
+
+    Alert.alert("Foto del item", "¿Cómo quieres agregar la foto?", [
+      { text: "Cámara", onPress: takeItemPhoto },
+      { text: "Galería", onPress: pickItemPhoto },
+      { text: "Cancelar", style: "cancel" },
+    ]);
+  };
+
   const handleSaveItem = async () => {
     if (!newName || !newQtyNumber || !newUnit || !newDays) return;
+    if (uploadingPhoto) {
+      Alert.alert("Espera", "La foto del item aún se está subiendo.");
+      return;
+    }
 
     const user = auth.currentUser;
     if (!user) return;
@@ -194,13 +348,13 @@ export default function Inventario() {
 
     let notificationIds: string[] = [];
 
-      if (expirationDate) { 
-        const ids = await scheduleNotifications(newName, expirationDate);
-        notificationIds = ids || [];
-      }
+    if (expirationDate) {
+      const ids = await scheduleNotifications(newName, expirationDate);
+      notificationIds = ids || [];
+    }
 
     if (editingItem) {
-        await cancelNotifications(editingItem.notificationIds);
+      await cancelNotifications(editingItem.notificationIds);
 
       const docRef = doc(
         db,
@@ -216,6 +370,7 @@ export default function Inventario() {
         location: newLocation,
         category: newCategory,
         notes: newNotes,
+        photoUrl: newPhotoUrl || undefined,
         expirationDays: Number(newDays),
         expirationDate: expirationDate?.toISOString(),
         notificationIds,
@@ -227,6 +382,7 @@ export default function Inventario() {
         location: newLocation,
         category: newCategory,
         notes: newNotes,
+        photoUrl: newPhotoUrl || undefined,
         expirationDays: Number(newDays),
         expirationDate: expirationDate?.toISOString(),
         notificationIds,
@@ -238,6 +394,7 @@ export default function Inventario() {
     setNewUnit("");
     setNewCategory("");
     setNewNotes("");
+    setNewPhotoUrl("");
     setNewDays("");
     setExpirationDate(null);
     setNewLocation("Nevera");
@@ -246,35 +403,31 @@ export default function Inventario() {
   };
 
   const handleDeleteWithReason = (item: Item) => {
-    Alert.alert(
-    "Eliminar producto",
-    "¿Por qué deseas eliminarlo?",
-    [
+    Alert.alert("Eliminar producto", "¿Por qué deseas eliminarlo?", [
       { text: "Lo usé", onPress: () => eliminarItem(item, "usado") },
       { text: "Se venció", onPress: () => eliminarItem(item, "vencido") },
       { text: "Otro", onPress: () => eliminarItem(item, "otro") },
       { text: "Cancelar", style: "cancel" },
-    ]
-  );
-};
+    ]);
+  };
 
-const eliminarItem = async (item: Item, razon: string) => {
-  const user = auth.currentUser;
-  if (!user) return;
+  const eliminarItem = async (item: Item, razon: string) => {
+    const user = auth.currentUser;
+    if (!user) return;
 
-  await cancelNotifications(item.notificationIds || []);
+    await cancelNotifications(item.notificationIds || []);
 
-  // (opcional) guardar historial
-  await addDoc(collection(db, "users", user.uid, "inventory_logs"), {
-    ...item,
-    eliminadoEn: new Date(),
-    razon,
-  });
+    // (opcional) guardar historial
+    await addDoc(collection(db, "users", user.uid, "inventory_logs"), {
+      ...item,
+      eliminadoEn: new Date(),
+      razon,
+    });
 
-  // 🔥 AQUÍ VA TU CÓDIGO ORIGINAL
-  const docRef = doc(db, "users", user.uid, "pantry_inventory", item.id);
-  await deleteDoc(docRef);
-};
+    // 🔥 AQUÍ VA TU CÓDIGO ORIGINAL
+    const docRef = doc(db, "users", user.uid, "pantry_inventory", item.id);
+    await deleteDoc(docRef);
+  };
 
   const filteredItems = items.filter((item) => {
     const matchSearch = item.name.toLowerCase().includes(search.toLowerCase());
@@ -284,15 +437,14 @@ const eliminarItem = async (item: Item, razon: string) => {
   });
 
   const urgentItems = items.filter(
-  (i) => i.expirationDays <= 2 && i.expirationDays > 0
-);
-  
+    (i) => i.expirationDays <= 2 && i.expirationDays > 0,
+  );
 
   const groupedItems = {
-  Nevera: filteredItems.filter((i) => i.location === "Nevera"),
-  Despensa: filteredItems.filter((i) => i.location === "Despensa"),
-  Congelador: filteredItems.filter((i) => i.location === "Congelador"),
-};
+    Nevera: filteredItems.filter((i) => i.location === "Nevera"),
+    Despensa: filteredItems.filter((i) => i.location === "Despensa"),
+    Congelador: filteredItems.filter((i) => i.location === "Congelador"),
+  };
 
   const getColor = (days: number) => {
     if (days <= 0) return "#E63946";
@@ -308,34 +460,41 @@ const eliminarItem = async (item: Item, razon: string) => {
     return "Fresco";
   };
   const toggleSection = (section: "Nevera" | "Despensa" | "Congelador") => {
-  setExpandedSections((prev) => ({
-    ...prev,
-    [section]: !prev[section],
-  }));
-};
+    setExpandedSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  };
 
   const renderItem = ({ item }: { item: Item }) => (
     <View style={styles.itemCard}>
+      <View style={styles.itemPhotoContainer}>
+        {item.photoUrl ? (
+          <Image source={{ uri: item.photoUrl }} style={styles.itemPhoto} />
+        ) : (
+          <View style={styles.itemPhotoPlaceholder}>
+            <Text style={styles.itemPhotoPlaceholderText}>🍅</Text>
+          </View>
+        )}
+      </View>
+
       <View>
         <Text style={styles.itemName}>{item.name}</Text>
         <Text style={styles.itemQty}>{item.quantity}</Text>
         {item.category && (
-          <Text style={{ fontSize: 11, color: "#888" }}>
-             {item.category}
-             </Text>
+          <Text style={{ fontSize: 11, color: "#888" }}>{item.category}</Text>
         )}
-        
+
         {item.notes && (
-           <Text style={{ fontSize: 11, color: "#aaa" }}>
-            {item.notes}
-            </Text>
+          <Text style={{ fontSize: 11, color: "#aaa" }}>{item.notes}</Text>
         )}
-        
+
         <Text style={styles.location}>
-          {item.location === "Nevera" 
-          ? "Nevera" 
-          : item.location === "Despensa" 
-          ? "Despensa" : "Congelador"}
+          {item.location === "Nevera"
+            ? "Nevera"
+            : item.location === "Despensa"
+              ? "Despensa"
+              : "Congelador"}
         </Text>
       </View>
 
@@ -356,7 +515,6 @@ const eliminarItem = async (item: Item, razon: string) => {
       </View>
     </View>
   );
-  
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -376,13 +534,12 @@ const eliminarItem = async (item: Item, razon: string) => {
               <Text style={styles.badgeText}>{urgentItems.length}</Text>
             </View>
           )}
-              
         </View>
 
         <TouchableOpacity
           style={styles.addButton}
           activeOpacity={0.7}
-          onPress={() => setModalVisible(true)}
+          onPress={openAddModal}
         >
           <Text style={styles.addText}>+ Agregar item</Text>
         </TouchableOpacity>
@@ -459,26 +616,24 @@ const eliminarItem = async (item: Item, razon: string) => {
             if (data.length === 0) return null;
 
             const isOpen =
-             expandedSections[section as keyof typeof expandedSections];
+              expandedSections[section as keyof typeof expandedSections];
 
             return (
               <View key={section}>
-        
                 <TouchableOpacity onPress={() => toggleSection(section as any)}>
                   <Text style={styles.sectionTitle}>
-                   {isOpen ? "▼" : "►"} {section}
+                    {isOpen ? "▼" : "►"} {section}
                   </Text>
                 </TouchableOpacity>
 
-        
                 {isOpen &&
-                 data.map((item) => (
-                  <View key={item.id}>{renderItem({ item })}</View>
-                 ))}
-               </View>
+                  data.map((item) => (
+                    <View key={item.id}>{renderItem({ item })}</View>
+                  ))}
+              </View>
             );
-         })}
-       </ScrollView>
+          })}
+        </ScrollView>
 
         {/* MODAL */}
         <Modal visible={modalVisible} animationType="slide" transparent>
@@ -496,6 +651,38 @@ const eliminarItem = async (item: Item, razon: string) => {
                 onChangeText={setNewName}
               />
 
+              <Text style={styles.label}>Foto del item</Text>
+              <TouchableOpacity
+                style={styles.photoPickerBtn}
+                onPress={openPhotoOptions}
+                disabled={uploadingPhoto}
+              >
+                {uploadingPhoto ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.photoPickerText}>
+                    {newPhotoUrl ? "Cambiar foto" : "Tomar o elegir foto"}
+                  </Text>
+                )}
+              </TouchableOpacity>
+
+              {newPhotoUrl ? (
+                <Image
+                  source={{ uri: newPhotoUrl }}
+                  style={styles.photoPreview}
+                />
+              ) : null}
+
+              {newPhotoUrl ? (
+                <TouchableOpacity
+                  style={styles.photoRemoveBtn}
+                  onPress={removeItemPhoto}
+                  disabled={uploadingPhoto}
+                >
+                  <Text style={styles.photoRemoveText}>Quitar foto</Text>
+                </TouchableOpacity>
+              ) : null}
+
               <Text style={styles.label}>Cantidad</Text>
               <TextInput
                 placeholder="Cantidad"
@@ -505,7 +692,13 @@ const eliminarItem = async (item: Item, razon: string) => {
                 onChangeText={setNewQtyNumber}
               />
 
-              <View style={{ flexDirection: "row", flexWrap: "wrap", marginBottom: 10 }}>
+              <View
+                style={{
+                  flexDirection: "row",
+                  flexWrap: "wrap",
+                  marginBottom: 10,
+                }}
+              >
                 {["L", "g", "kg", "ml", "unidad"].map((unit) => (
                   <TouchableOpacity
                     key={unit}
@@ -515,7 +708,13 @@ const eliminarItem = async (item: Item, razon: string) => {
                     ]}
                     onPress={() => setNewUnit(unit)}
                   >
-                    <Text style={newUnit === unit ? styles.unitTextActive : styles.unitText}>
+                    <Text
+                      style={
+                        newUnit === unit
+                          ? styles.unitTextActive
+                          : styles.unitText
+                      }
+                    >
                       {unit}
                     </Text>
                   </TouchableOpacity>
@@ -545,15 +744,14 @@ const eliminarItem = async (item: Item, razon: string) => {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                style={[
-                  styles.locationBtn,
-                  newLocation === "Congelador" && styles.locationActive,
-                ]}
-                onPress={() => setNewLocation("Congelador")}
+                  style={[
+                    styles.locationBtn,
+                    newLocation === "Congelador" && styles.locationActive,
+                  ]}
+                  onPress={() => setNewLocation("Congelador")}
                 >
                   <Text> Congelador </Text>
                 </TouchableOpacity>
-              
               </View>
 
               <Text style={styles.label}>Categoría</Text>
@@ -562,16 +760,16 @@ const eliminarItem = async (item: Item, razon: string) => {
                 style={styles.input}
                 value={newCategory}
                 onChangeText={setNewCategory}
-                />
+              />
 
-              <Text style={styles.label}>Notas</Text>  
+              <Text style={styles.label}>Notas</Text>
               <TextInput
                 placeholder="Ej: Marca, Organico"
-                style={[styles.input, {height: 80}]}
+                style={[styles.input, { height: 80 }]}
                 value={newNotes}
                 onChangeText={setNewNotes}
                 multiline
-                />
+              />
 
               <Text style={styles.label}>Días para vencimiento</Text>
               <TouchableOpacity
@@ -581,7 +779,7 @@ const eliminarItem = async (item: Item, razon: string) => {
                 <Text>
                   {expirationDate
                     ? expirationDate.toLocaleDateString()
-                    :" Selecciona fecha de vencimiento"} 
+                    : " Selecciona fecha de vencimiento"}
                 </Text>
               </TouchableOpacity>
 
@@ -616,6 +814,8 @@ const eliminarItem = async (item: Item, razon: string) => {
                 onPress={() => {
                   setModalVisible(false);
                   setEditingItem(null);
+                  setNewPhotoUrl("");
+                  setExpirationDate(null);
                 }}
               >
                 <Text style={styles.cancelText}>Cancelar</Text>
@@ -658,23 +858,23 @@ const styles = StyleSheet.create({
     borderRadius: 12,
   },
   badge: {
-  position: "absolute",
-  top: -5,
-  right: -5,
-  backgroundColor: "#E63946",
-  borderRadius: 10,
-  minWidth: 18,
-  height: 18,
-  justifyContent: "center",
-  alignItems: "center",
-  paddingHorizontal: 4,
-},
+    position: "absolute",
+    top: -5,
+    right: -5,
+    backgroundColor: "#E63946",
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+  },
 
   badgeText: {
-  color: "#fff",
-  fontSize: 10,
-  fontWeight: "bold",
-},
+    color: "#fff",
+    fontSize: 10,
+    fontWeight: "bold",
+  },
 
   addButton: {
     backgroundColor: "#C4918A",
@@ -776,7 +976,32 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 10,
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
+  },
+
+  itemPhotoContainer: {
+    marginRight: 12,
+  },
+
+  itemPhoto: {
+    width: 58,
+    height: 58,
+    borderRadius: 12,
+    backgroundColor: "#f3f3f3",
+  },
+
+  itemPhotoPlaceholder: {
+    width: 58,
+    height: 58,
+    borderRadius: 12,
+    backgroundColor: "#F6F1F1",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  itemPhotoPlaceholderText: {
+    fontSize: 22,
   },
 
   itemName: { fontSize: 16, fontWeight: "bold" },
@@ -859,6 +1084,42 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 10,
     marginBottom: 10,
+  },
+
+  photoPickerBtn: {
+    backgroundColor: "#2c1810",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 10,
+  },
+
+  photoPickerText: {
+    color: "#fff",
+    fontWeight: "700",
+  },
+
+  photoRemoveBtn: {
+    backgroundColor: "#FDECEC",
+    borderWidth: 1,
+    borderColor: "#F4B3B3",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  photoRemoveText: {
+    color: "#B00020",
+    fontWeight: "700",
+  },
+
+  photoPreview: {
+    width: 100,
+    height: 100,
+    borderRadius: 14,
+    marginBottom: 12,
+    alignSelf: "center",
   },
 
   locationBtn: {

@@ -1,19 +1,28 @@
-import { createUserWithEmailAndPassword, sendEmailVerification} from "firebase/auth";
-import { doc, setDoc } from "firebase/firestore";
-import { auth , db} from "../../config/firebase";
 import { router, Stack } from "expo-router";
+import {
+    createUserWithEmailAndPassword,
+    sendEmailVerification,
+} from "firebase/auth";
+import { doc, setDoc } from "firebase/firestore";
 import { useState } from "react";
 import {
-  ActivityIndicator,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { auth, db } from "../../config/firebase";
+import {
+    FORM_LIMITS,
+    isValidEmail,
+    limitText,
+    normalizeEmail,
+} from "../../utils/formValidators";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -23,44 +32,72 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
 
   const handleRegister = async () => {
-    if (!email || !confirmEmail || !password || !confirmPassword) {
+    const normalizedEmail = normalizeEmail(email);
+    const normalizedConfirmEmail = normalizeEmail(confirmEmail);
+    const normalizedPassword = password.trim();
+    const normalizedConfirmPassword = confirmPassword.trim();
+
+    if (
+      !normalizedEmail ||
+      !normalizedConfirmEmail ||
+      !normalizedPassword ||
+      !normalizedConfirmPassword
+    ) {
       alert("Completa todos los campos");
       return;
     }
 
-    if (email !== confirmEmail) {
+    if (
+      !isValidEmail(normalizedEmail) ||
+      !isValidEmail(normalizedConfirmEmail)
+    ) {
+      alert("Ingresa un correo válido");
+      return;
+    }
+
+    if (normalizedEmail !== normalizedConfirmEmail) {
       alert("Los correos no coinciden");
       return;
     }
 
-    if (password !== confirmPassword) {
+    if (normalizedPassword !== normalizedConfirmPassword) {
       alert("Las contraseñas no coinciden");
       return;
     }
 
-    if (password.length < 8) {
+    if (normalizedPassword.length < 8) {
       alert("La contraseña debe tener al menos 8 caracteres");
+      return;
+    }
+
+    if (normalizedPassword.length > FORM_LIMITS.password) {
+      alert(
+        `La contraseña no puede superar ${FORM_LIMITS.password} caracteres`,
+      );
       return;
     }
 
     setLoading(true);
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        normalizedEmail,
+        normalizedPassword,
+      );
 
       const user = userCredential.user;
 
       await setDoc(doc(db, "users", user.uid), {
-        email: email,
+        email: normalizedEmail,
         createdAt: new Date(),
       });
 
       await sendEmailVerification(user);
 
-      alert("Se ha enviado un correo de verificación a " + email);
+      alert("Se ha enviado un correo de verificación a " + normalizedEmail);
 
-      router.replace ("/(auth)/verificaremail");
-
+      router.replace("/(auth)/verificaremail");
     } catch (error: any) {
       alert("Error al registrar: " + error.message);
     } finally {
@@ -94,8 +131,13 @@ export default function Register() {
               style={styles.input}
               placeholder="correoelectronico@dominio.com"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(value) =>
+                setEmail(limitText(value, FORM_LIMITS.email))
+              }
               autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              maxLength={FORM_LIMITS.email}
             />
 
             <Text style={styles.label}>Confirma tu correo electrónico</Text>
@@ -103,8 +145,13 @@ export default function Register() {
               style={styles.input}
               placeholder="correoelectronico@dominio.com"
               value={confirmEmail}
-              onChangeText={setConfirmEmail}
+              onChangeText={(value) =>
+                setConfirmEmail(limitText(value, FORM_LIMITS.email))
+              }
               autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              maxLength={FORM_LIMITS.email}
             />
 
             <Text style={styles.label}>Contraseña</Text>
@@ -113,7 +160,10 @@ export default function Register() {
               placeholder="Ingresa tu contraseña"
               secureTextEntry
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(value) =>
+                setPassword(limitText(value, FORM_LIMITS.password))
+              }
+              maxLength={FORM_LIMITS.password}
             />
 
             <Text style={styles.label}>Confirmar contraseña</Text>
@@ -122,7 +172,10 @@ export default function Register() {
               placeholder="Ingresa tu contraseña"
               secureTextEntry
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              onChangeText={(value) =>
+                setConfirmPassword(limitText(value, FORM_LIMITS.password))
+              }
+              maxLength={FORM_LIMITS.password}
             />
 
             <TouchableOpacity

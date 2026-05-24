@@ -1,36 +1,40 @@
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  ScrollView,
-  Image,
-  ActivityIndicator,
-  Modal,
-  TextInput,
-  Platform,
-  KeyboardAvoidingView,
-  Alert,
-  Animated,
-  PanResponder,
-} from "react-native";
 import { Stack } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+    addDoc,
+    collection,
+    doc,
+    onSnapshot,
+    orderBy,
+    query,
+    serverTimestamp,
+    updateDoc
+} from "firebase/firestore";
+import * as Icons from "phosphor-react-native";
 import { useEffect, useRef, useState } from "react";
 import {
-  addDoc,
-  collection,
-  doc,
-  onSnapshot,
-  orderBy,
-  query,
-  serverTimestamp,
-  updateDoc,
-  deleteDoc,
-  getDoc,
-} from "firebase/firestore";
-import { db, auth } from "../../config/firebase";
-import * as Icons from "phosphor-react-native";
+    ActivityIndicator,
+    Alert,
+    Animated,
+    Image,
+    KeyboardAvoidingView,
+    Modal,
+    PanResponder,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { auth, db } from "../../config/firebase";
+import {
+    FORM_LIMITS,
+    limitText,
+    onlyDigits,
+    sanitizeDecimal,
+} from "../../utils/formValidators";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -106,13 +110,25 @@ function formatCOP(value: number) {
 function inferSeccion(nombre: string): Seccion {
   const n = nombre.toLowerCase();
   if (/leche|queso|yogur|mantequilla|crema/.test(n)) return "Lácteos";
-  if (/pollo|res|cerdo|atún|huevo|salmón|carne|pechuga/.test(n)) return "Carnes y proteínas";
-  if (/arroz|avena|pasta|frijol|lenteja|garbanzo|cereal|quinoa/.test(n)) return "Granos y cereales";
+  if (/pollo|res|cerdo|atún|huevo|salmón|carne|pechuga/.test(n))
+    return "Carnes y proteínas";
+  if (/arroz|avena|pasta|frijol|lenteja|garbanzo|cereal|quinoa/.test(n))
+    return "Granos y cereales";
   if (/pan|arepa|galleta|bizcocho/.test(n)) return "Panadería";
   if (/tomate|frijol|atún|sardina|enlatado/.test(n)) return "Enlatados";
-  if (/sal|azúcar|aceite|vinagre|pimienta|ajo|cebolla en polvo|salsa|mayonesa/.test(n)) return "Condimentos";
+  if (
+    /sal|azúcar|aceite|vinagre|pimienta|ajo|cebolla en polvo|salsa|mayonesa/.test(
+      n,
+    )
+  )
+    return "Condimentos";
   if (/helado|nugget|congelado|brócoli congelado/.test(n)) return "Congelados";
-  if (/manzana|banano|naranja|tomate|lechuga|espinaca|zanahoria|papa|cebolla|ajo|limón|aguacate/.test(n)) return "Frutas y verduras";
+  if (
+    /manzana|banano|naranja|tomate|lechuga|espinaca|zanahoria|papa|cebolla|ajo|limón|aguacate/.test(
+      n,
+    )
+  )
+    return "Frutas y verduras";
   return "Otros";
 }
 
@@ -134,18 +150,25 @@ function SwipeableItem({
 
   const panResponder = useRef(
     PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 8 && Math.abs(g.dy) < 20,
+      onMoveShouldSetPanResponder: (_, g) =>
+        Math.abs(g.dx) > 8 && Math.abs(g.dy) < 20,
       onPanResponderMove: (_, g) => {
         if (g.dx < 0) translateX.setValue(Math.max(g.dx, -90));
       },
       onPanResponderRelease: (_, g) => {
         if (g.dx < THRESHOLD) {
-          Animated.spring(translateX, { toValue: -80, useNativeDriver: true }).start();
+          Animated.spring(translateX, {
+            toValue: -80,
+            useNativeDriver: true,
+          }).start();
         } else {
-          Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+          }).start();
         }
       },
-    })
+    }),
   ).current;
 
   const resetSwipe = () =>
@@ -184,9 +207,16 @@ function SwipeableItem({
         </TouchableOpacity>
 
         {/* Info */}
-        <TouchableOpacity style={styles.itemInfo} onLongPress={onEdit} activeOpacity={0.7}>
+        <TouchableOpacity
+          style={styles.itemInfo}
+          onLongPress={onEdit}
+          activeOpacity={0.7}
+        >
           <Text
-            style={[styles.itemNombre, item.comprado && styles.itemNombreTachado]}
+            style={[
+              styles.itemNombre,
+              item.comprado && styles.itemNombreTachado,
+            ]}
             numberOfLines={1}
           >
             {item.nombre}
@@ -194,7 +224,10 @@ function SwipeableItem({
           <Text style={styles.itemMeta}>
             {item.cantidad} {item.unidad}
             {item.recetas && item.recetas.length > 0 && (
-              <Text style={styles.itemRecetas}> · {item.recetas.slice(0, 2).join(", ")}</Text>
+              <Text style={styles.itemRecetas}>
+                {" "}
+                · {item.recetas.slice(0, 2).join(", ")}
+              </Text>
             )}
           </Text>
         </TouchableOpacity>
@@ -231,7 +264,7 @@ export default function ListadeCompras() {
     if (!user) return;
     const q = query(
       collection(db, "users", user.uid, "listas"),
-      orderBy("creadoEn", "desc")
+      orderBy("creadoEn", "desc"),
     );
     const unsub = onSnapshot(q, (snap) => {
       const activa = snap.docs.find((d) => !d.data().completada);
@@ -260,7 +293,10 @@ export default function ListadeCompras() {
 
   const updateItems = async (newItems: ItemCompra[]) => {
     if (!user || !lista) return;
-    const total = newItems.reduce((a, it) => a + (it.comprado ? 0 : it.precio), 0);
+    const total = newItems.reduce(
+      (a, it) => a + (it.comprado ? 0 : it.precio),
+      0,
+    );
     await updateDoc(doc(db, "users", user.uid, "listas", lista.id), {
       items: newItems,
       totalEstimado: newItems.reduce((a, it) => a + it.precio, 0),
@@ -270,7 +306,7 @@ export default function ListadeCompras() {
   const toggleItem = async (itemId: string) => {
     if (!lista) return;
     const newItems = lista.items.map((it) =>
-      it.id === itemId ? { ...it, comprado: !it.comprado } : it
+      it.id === itemId ? { ...it, comprado: !it.comprado } : it,
     );
     await updateItems(newItems);
   };
@@ -300,17 +336,41 @@ export default function ListadeCompras() {
   };
 
   const saveForm = async () => {
-    if (!form.nombre.trim()) {
+    const nombre = form.nombre.trim();
+    const cantidad =
+      parseFloat(
+        sanitizeDecimal(form.cantidad, FORM_LIMITS.shoppingQuantity),
+      ) || 1;
+    const precio =
+      parseInt(
+        onlyDigits(form.precio).slice(0, FORM_LIMITS.shoppingPrice),
+        10,
+      ) || 0;
+
+    if (!nombre) {
       Alert.alert("Error", "El nombre es obligatorio.");
       return;
     }
-    const cantidad = parseFloat(form.cantidad) || 1;
-    const precio = parseInt(form.precio.replace(/\D/g, ""), 10) || 0;
+    if (nombre.length > FORM_LIMITS.shoppingItemName) {
+      Alert.alert(
+        "Error",
+        `El nombre no puede superar ${FORM_LIMITS.shoppingItemName} caracteres.`,
+      );
+      return;
+    }
+    if (cantidad <= 0 || Number.isNaN(cantidad)) {
+      Alert.alert("Error", "Ingresa una cantidad válida.");
+      return;
+    }
+    if (precio < 0 || Number.isNaN(precio)) {
+      Alert.alert("Error", "Ingresa un precio válido.");
+      return;
+    }
 
     if (!lista || !user) {
       // No hay lista activa → crear nueva
       const newItem: Omit<ItemCompra, "id"> = {
-        nombre: form.nombre.trim(),
+        nombre: nombre.slice(0, FORM_LIMITS.shoppingItemName),
         cantidad,
         unidad: form.unidad,
         precio,
@@ -329,8 +389,15 @@ export default function ListadeCompras() {
       if (editingItemId) {
         newItems = lista.items.map((it) =>
           it.id === editingItemId
-            ? { ...it, nombre: form.nombre.trim(), cantidad, unidad: form.unidad, precio, seccion: form.seccion }
-            : it
+            ? {
+                ...it,
+                nombre: nombre.slice(0, FORM_LIMITS.shoppingItemName),
+                cantidad,
+                unidad: form.unidad,
+                precio,
+                seccion: form.seccion,
+              }
+            : it,
         );
       } else {
         const newItem: ItemCompra = {
@@ -373,7 +440,10 @@ export default function ListadeCompras() {
       });
       setModalCompletar(false);
       setGastoReal("");
-      Alert.alert("Compras completadas", `Gastaste ${formatCOP(realVal)}. El gasto se registró en tus finanzas.`);
+      Alert.alert(
+        "Compras completadas",
+        `Gastaste ${formatCOP(realVal)}. El gasto se registró en tus finanzas.`,
+      );
     } catch {
       Alert.alert("Error", "No se pudo completar la compra.");
     } finally {
@@ -397,7 +467,9 @@ export default function ListadeCompras() {
     itemsPorSeccion[sec].push(it);
   });
   Object.keys(itemsPorSeccion).forEach((sec) => {
-    itemsPorSeccion[sec].sort((a, b) => Number(a.comprado) - Number(b.comprado));
+    itemsPorSeccion[sec].sort(
+      (a, b) => Number(a.comprado) - Number(b.comprado),
+    );
   });
 
   const gastoRealNum = parseInt(gastoReal.replace(/\D/g, ""), 10) || 0;
@@ -415,7 +487,10 @@ export default function ListadeCompras() {
           <Text style={styles.headerSub}>Organiza tus compras</Text>
         </View>
         <View style={styles.headerRight}>
-          <Image source={require("../../Logo Chef.png")} style={styles.headerLogo} />
+          <Image
+            source={require("../../Logo Chef.png")}
+            style={styles.headerLogo}
+          />
           <TouchableOpacity style={styles.addBtn} onPress={openAdd}>
             <Icons.PlusIcon size={20} color="#fff" weight="bold" />
           </TouchableOpacity>
@@ -429,7 +504,11 @@ export default function ListadeCompras() {
       ) : !lista ? (
         /* ── Estado vacío ── */
         <View style={styles.centered}>
-          <Icons.ShoppingCartSimpleIcon size={56} color="#C4918A" weight="thin" />
+          <Icons.ShoppingCartSimpleIcon
+            size={56}
+            color="#C4918A"
+            weight="thin"
+          />
           <Text style={styles.emptyTitle}>Sin lista activa</Text>
           <Text style={styles.emptySubtitle}>
             Genera una lista desde el Planificador o agrega items manualmente.
@@ -446,7 +525,9 @@ export default function ListadeCompras() {
               <Text style={styles.progressLabel}>
                 {comprados}/{totalItems} items comprados
               </Text>
-              <Text style={styles.progressTotal}>{formatCOP(totalEstimado)}</Text>
+              <Text style={styles.progressTotal}>
+                {formatCOP(totalEstimado)}
+              </Text>
             </View>
             <View style={styles.progressBg}>
               <View
@@ -463,8 +544,8 @@ export default function ListadeCompras() {
               {pctComprado >= 1
                 ? "Todo listo"
                 : pctComprado >= 0.5
-                ? "Mas de la mitad"
-                : `Faltan ${totalItems - comprados} items`}
+                  ? "Mas de la mitad"
+                  : `Faltan ${totalItems - comprados} items`}
             </Text>
           </View>
 
@@ -494,7 +575,9 @@ export default function ListadeCompras() {
                         onEdit={() => openEdit(item)}
                         onDelete={() => deleteItem(item.id)}
                       />
-                      {idx < items.length - 1 && <View style={styles.divider} />}
+                      {idx < items.length - 1 && (
+                        <View style={styles.divider} />
+                      )}
                     </View>
                   ))}
                 </View>
@@ -538,8 +621,13 @@ export default function ListadeCompras() {
               placeholderTextColor="#aaa"
               value={form.nombre}
               onChangeText={(v) =>
-                setForm({ ...form, nombre: v, seccion: inferSeccion(v) })
+                setForm({
+                  ...form,
+                  nombre: limitText(v, FORM_LIMITS.shoppingItemName),
+                  seccion: inferSeccion(v),
+                })
               }
+              maxLength={FORM_LIMITS.shoppingItemName}
             />
 
             <View style={styles.row2}>
@@ -551,7 +639,16 @@ export default function ListadeCompras() {
                   placeholderTextColor="#aaa"
                   keyboardType="numeric"
                   value={form.cantidad}
-                  onChangeText={(v) => setForm({ ...form, cantidad: v })}
+                  onChangeText={(v) =>
+                    setForm({
+                      ...form,
+                      cantidad: sanitizeDecimal(
+                        v,
+                        FORM_LIMITS.shoppingQuantity,
+                      ),
+                    })
+                  }
+                  maxLength={FORM_LIMITS.shoppingQuantity}
                 />
               </View>
               <View style={{ flex: 1 }}>
@@ -562,7 +659,13 @@ export default function ListadeCompras() {
                   placeholderTextColor="#aaa"
                   keyboardType="numeric"
                   value={form.precio}
-                  onChangeText={(v) => setForm({ ...form, precio: v })}
+                  onChangeText={(v) =>
+                    setForm({
+                      ...form,
+                      precio: onlyDigits(v).slice(0, FORM_LIMITS.shoppingPrice),
+                    })
+                  }
+                  maxLength={FORM_LIMITS.shoppingPrice}
                 />
               </View>
             </View>
@@ -641,7 +744,9 @@ export default function ListadeCompras() {
             <View style={styles.comparacionRow}>
               <View style={styles.comparacionItem}>
                 <Text style={styles.comparacionLabel}>Estimado</Text>
-                <Text style={styles.comparacionVal}>{formatCOP(totalEstimado)}</Text>
+                <Text style={styles.comparacionVal}>
+                  {formatCOP(totalEstimado)}
+                </Text>
               </View>
               <Icons.ArrowRightIcon size={18} color="#ccc" />
               <View style={styles.comparacionItem}>
@@ -654,8 +759,8 @@ export default function ListadeCompras() {
                         gastoRealNum > totalEstimado
                           ? "#E63946"
                           : gastoRealNum > 0
-                          ? "#2D6A4F"
-                          : "#2c1810",
+                            ? "#2D6A4F"
+                            : "#2c1810",
                     },
                   ]}
                 >
@@ -669,8 +774,8 @@ export default function ListadeCompras() {
                 {gastoRealNum > totalEstimado
                   ? `Gastaste ${formatCOP(gastoRealNum - totalEstimado)} mas de lo estimado`
                   : gastoRealNum < totalEstimado
-                  ? `Ahorraste ${formatCOP(totalEstimado - gastoRealNum)}`
-                  : "Exacto al estimado"}
+                    ? `Ahorraste ${formatCOP(totalEstimado - gastoRealNum)}`
+                    : "Exacto al estimado"}
               </Text>
             )}
 
@@ -681,7 +786,10 @@ export default function ListadeCompras() {
               placeholderTextColor="#aaa"
               keyboardType="numeric"
               value={gastoReal}
-              onChangeText={setGastoReal}
+              onChangeText={(v) =>
+                setGastoReal(onlyDigits(v).slice(0, FORM_LIMITS.shoppingPrice))
+              }
+              maxLength={FORM_LIMITS.shoppingPrice}
             />
 
             <TouchableOpacity
@@ -721,7 +829,14 @@ const swipeStyles = StyleSheet.create({
   },
   deleteAction: { alignItems: "center", gap: 4 },
   deleteText: { color: "#fff", fontSize: 11, fontWeight: "600" },
-  row: { backgroundColor: "#fff", flexDirection: "row", alignItems: "center", paddingVertical: 12, paddingHorizontal: 14, gap: 10 },
+  row: {
+    backgroundColor: "#fff",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    gap: 10,
+  },
 });
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -730,7 +845,13 @@ const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#F6F1F1" },
   scroll: { flex: 1 },
   scrollContent: { padding: 16 },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center", gap: 12, padding: 32 },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    padding: 32,
+  },
 
   // Header
   header: {
@@ -741,7 +862,12 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 12,
   },
-  headerTitle: { fontSize: 26, fontWeight: "700", color: "#2c1810", marginTop: 2 },
+  headerTitle: {
+    fontSize: 26,
+    fontWeight: "700",
+    color: "#2c1810",
+    marginTop: 2,
+  },
   headerSub: { fontSize: 12, color: "#aaa", marginTop: 2 },
   headerRight: { flexDirection: "row", alignItems: "center", gap: 10 },
   headerLogo: { width: 52, height: 52, borderRadius: 12 },
@@ -766,10 +892,20 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  progressHeader: { flexDirection: "row", justifyContent: "space-between", marginBottom: 8 },
+  progressHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
   progressLabel: { fontSize: 14, fontWeight: "600", color: "#2c1810" },
   progressTotal: { fontSize: 14, fontWeight: "700", color: "#C4918A" },
-  progressBg: { height: 8, backgroundColor: "#F0EBE8", borderRadius: 8, overflow: "hidden", marginBottom: 6 },
+  progressBg: {
+    height: 8,
+    backgroundColor: "#F0EBE8",
+    borderRadius: 8,
+    overflow: "hidden",
+    marginBottom: 6,
+  },
   progressFill: { height: "100%", borderRadius: 8 },
   progressSub: { fontSize: 11, color: "#aaa" },
 
@@ -805,7 +941,13 @@ const styles = StyleSheet.create({
   },
   itemMeta: { fontSize: 11, color: "#aaa", marginTop: 2 },
   itemRecetas: { color: "#C4918A" },
-  itemPrecio: { fontSize: 13, fontWeight: "700", color: "#C4918A", minWidth: 60, textAlign: "right" },
+  itemPrecio: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#C4918A",
+    minWidth: 60,
+    textAlign: "right",
+  },
   divider: { height: 0.5, backgroundColor: "#F0EBE8", marginHorizontal: 14 },
 
   // Boton completar
@@ -831,8 +973,18 @@ const styles = StyleSheet.create({
   completarText: { color: "#fff", fontWeight: "700", fontSize: 15 },
 
   // Empty
-  emptyTitle: { fontSize: 18, fontWeight: "700", color: "#2c1810", textAlign: "center" },
-  emptySubtitle: { fontSize: 13, color: "#aaa", textAlign: "center", lineHeight: 20 },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#2c1810",
+    textAlign: "center",
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: "#aaa",
+    textAlign: "center",
+    lineHeight: 20,
+  },
   emptyBtn: {
     backgroundColor: "#2c1810",
     paddingHorizontal: 24,
@@ -843,7 +995,11 @@ const styles = StyleSheet.create({
   emptyBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "flex-end" },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.4)",
+    justifyContent: "flex-end",
+  },
   modalContent: {
     backgroundColor: "#fff",
     borderTopLeftRadius: 24,
@@ -860,8 +1016,19 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: 16,
   },
-  modalTitle: { fontSize: 18, fontWeight: "700", color: "#2c1810", marginBottom: 12 },
-  fieldLabel: { fontSize: 13, fontWeight: "700", color: "#2c1810", marginBottom: 6, marginTop: 4 },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: "700",
+    color: "#2c1810",
+    marginBottom: 12,
+  },
+  fieldLabel: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#2c1810",
+    marginBottom: 6,
+    marginTop: 4,
+  },
   input: {
     backgroundColor: "#F6F1F1",
     borderRadius: 12,
@@ -889,7 +1056,12 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   modalBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  modalCancel: { textAlign: "center", color: "#aaa", fontWeight: "600", paddingVertical: 10 },
+  modalCancel: {
+    textAlign: "center",
+    color: "#aaa",
+    fontWeight: "600",
+    paddingVertical: 10,
+  },
 
   // Modal completar
   comparacionRow: {
@@ -904,5 +1076,10 @@ const styles = StyleSheet.create({
   comparacionItem: { alignItems: "center", gap: 4 },
   comparacionLabel: { fontSize: 11, color: "#aaa", fontWeight: "600" },
   comparacionVal: { fontSize: 20, fontWeight: "700", color: "#2c1810" },
-  diferencia: { fontSize: 12, color: "#888", textAlign: "center", marginBottom: 8 },
+  diferencia: {
+    fontSize: 12,
+    color: "#888",
+    textAlign: "center",
+    marginBottom: 8,
+  },
 });

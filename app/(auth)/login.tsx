@@ -1,7 +1,7 @@
+import * as AuthSession from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import * as AuthSession from "expo-auth-session";
 import {
   GoogleAuthProvider,
   signInWithCredential,
@@ -11,7 +11,6 @@ import { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Image,
-  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -19,8 +18,12 @@ import {
   View,
 } from "react-native";
 import { auth } from "../../config/firebase";
-
-
+import {
+  FORM_LIMITS,
+  isValidEmail,
+  limitText,
+  normalizeEmail,
+} from "../../utils/formValidators";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -28,17 +31,63 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  const getFriendlyAuthError = (
+    error: unknown,
+    provider: "email" | "google",
+  ) => {
+    if (provider === "google") {
+      const responseError = error as {
+        code?: string;
+        message?: string;
+        description?: string;
+      } | null;
+      if (
+        responseError?.code === "ERR_CANCELED" ||
+        responseError?.code === "ERR_REQUEST_CANCELED"
+      ) {
+        return null;
+      }
+
+      if (responseError?.description) {
+        return responseError.description;
+      }
+
+      return "No se pudo iniciar sesión con Google. Revisa tu configuración de OAuth y vuelve a intentarlo.";
+    }
+
+    const authError = error as { code?: string; message?: string } | null;
+
+    switch (authError?.code) {
+      case "auth/invalid-email":
+        return "El correo electrónico no es válido.";
+      case "auth/user-not-found":
+        return "No existe una cuenta con ese correo.";
+      case "auth/wrong-password":
+      case "auth/invalid-credential":
+        return "El correo o la contraseña son incorrectos.";
+      case "auth/too-many-requests":
+        return "Demasiados intentos fallidos. Intenta de nuevo más tarde.";
+      case "auth/network-request-failed":
+        return "No hay conexión con Firebase. Verifica tu internet.";
+      default:
+        return (
+          authError?.message || "No se pudo iniciar sesión. Inténtalo de nuevo."
+        );
+    }
+  };
 
   // Google Auth
- const redirectUri = AuthSession.makeRedirectUri({
-  scheme: "preapmeal",
-});
+  const redirectUri = AuthSession.makeRedirectUri({
+    scheme: "preapmeal",
+  });
 
-const [request, response, promptAsync] = Google.useAuthRequest({
-  androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-  webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-  redirectUri,
-});
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    redirectUri,
+  });
 
   useEffect(() => {
     if (response?.type === "success") {
@@ -51,24 +100,34 @@ const [request, response, promptAsync] = Google.useAuthRequest({
 
   const handleGoogleFirebaseLogin = async (idToken: string) => {
     setLoading(true);
+    setAuthError(null);
     try {
       const credential = GoogleAuthProvider.credential(idToken);
       const userCredential = await signInWithCredential(auth, credential);
       router.replace("/(tabs)");
-      alert(
-        "¡Inicio de sesión con Google exitoso! Bienvenido " +
-          userCredential.user?.email,
-      );
+      return userCredential.user?.email;
     } catch (error: any) {
-      alert("Error al iniciar sesión con Google: " + error.message);
+      const friendlyMessage = getFriendlyAuthError(error, "google");
+      if (friendlyMessage) {
+        setAuthError(friendlyMessage);
+      }
     } finally {
       setLoading(false);
     }
   };
 
   const handleLogin = async () => {
-    if (!email || !password) {
-      alert("Por favor ingresa email y contraseña");
+    setAuthError(null);
+
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedEmail || !password) {
+      setAuthError("Por favor ingresa email y contraseña.");
+      return;
+    }
+
+    if (!isValidEmail(normalizedEmail)) {
+      setAuthError("El correo electrónico no es válido.");
       return;
     }
 
@@ -77,19 +136,15 @@ const [request, response, promptAsync] = Google.useAuthRequest({
     try {
       const userCredential = await signInWithEmailAndPassword(
         auth,
-        email,
+        normalizedEmail,
         password,
       );
 
-      router.replace("/(tabs)"); // Redirige a la pantalla principal después de iniciar sesión
+      router.replace("/(tabs)");
       console.log("Usuario logueado:", userCredential.user?.email);
-      alert(
-        "¡Inicio de sesión exitoso! Bienvenido " + userCredential.user?.email,
-      );
-      // No hace falta navegar manualmente.a
-      // RootLayout detectará el usuario y redirigirá a (app)
     } catch (error: any) {
-      alert("Error al iniciar sesión: " + error.message);
+      const friendlyMessage = getFriendlyAuthError(error, "email");
+      setAuthError(friendlyMessage);
     } finally {
       setLoading(false);
     }
@@ -109,6 +164,8 @@ const [request, response, promptAsync] = Google.useAuthRequest({
         Ingresa tu correo electrónico{"\n"}para iniciar sesión
       </Text>
 
+      {authError ? <Text style={styles.errorText}>{authError}</Text> : null}
+
       {/* Email */}
       <Text style={styles.label}>Email</Text>
 
@@ -116,9 +173,11 @@ const [request, response, promptAsync] = Google.useAuthRequest({
         placeholder="correoelectronico@dominio.com"
         style={styles.input}
         value={email}
-        onChangeText={setEmail}
+        onChangeText={(value) => setEmail(limitText(value, FORM_LIMITS.email))}
         autoCapitalize="none"
         keyboardType="email-address"
+        autoCorrect={false}
+        maxLength={FORM_LIMITS.email}
       />
 
       {/* Contraseña */}
@@ -129,7 +188,10 @@ const [request, response, promptAsync] = Google.useAuthRequest({
         secureTextEntry
         style={styles.input}
         value={password}
-        onChangeText={setPassword}
+        onChangeText={(value) =>
+          setPassword(limitText(value, FORM_LIMITS.password))
+        }
+        maxLength={FORM_LIMITS.password}
       />
 
       {/* Botón */}
@@ -160,7 +222,25 @@ const [request, response, promptAsync] = Google.useAuthRequest({
       {/* Google */}
       <TouchableOpacity
         style={styles.googleButton}
-        onPress={() => promptAsync()}
+        onPress={async () => {
+          setAuthError(null);
+
+          if (!request) {
+            setAuthError(
+              "Google aún no está listo. Revisa los client IDs en tu .env.",
+            );
+            return;
+          }
+
+          try {
+            await promptAsync();
+          } catch (error) {
+            const friendlyMessage = getFriendlyAuthError(error, "google");
+            if (friendlyMessage) {
+              setAuthError(friendlyMessage);
+            }
+          }
+        }}
         disabled={!request || loading}
       >
         <Image
@@ -217,6 +297,18 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#555",
     marginBottom: 20,
+  },
+
+  errorText: {
+    width: "100%",
+    color: "#B00020",
+    backgroundColor: "#FDECEC",
+    borderColor: "#F5B5B5",
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 12,
   },
 
   label: {

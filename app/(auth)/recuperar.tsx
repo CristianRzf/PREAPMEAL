@@ -1,19 +1,23 @@
+import { router } from "expo-router";
+import {
+    fetchSignInMethodsForEmail,
+    sendPasswordResetEmail,
+} from "firebase/auth";
 import { useState } from "react";
 import {
-  View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
-  Image,
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
+    ActivityIndicator,
+    Image,
+    KeyboardAvoidingView,
+    Platform,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View,
 } from "react-native";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "../../config/firebase";
-import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { auth } from "../../config/firebase";
+import { isValidEmail, normalizeEmail } from "../../utils/formValidators";
 
 type Estado = "idle" | "loading" | "enviado" | "error";
 
@@ -23,12 +27,14 @@ export default function Recuperar() {
   const [errorMsg, setErrorMsg] = useState("");
 
   const handleReset = async () => {
-    if (!email.trim()) {
+    const normalizedEmail = normalizeEmail(email);
+
+    if (!normalizedEmail) {
       setErrorMsg("Por favor ingresa tu correo");
       setEstado("error");
       return;
     }
-    if (!email.includes("@")) {
+    if (!isValidEmail(normalizedEmail)) {
       setErrorMsg("Ingresa un correo válido");
       setEstado("error");
       return;
@@ -38,14 +44,33 @@ export default function Recuperar() {
     setErrorMsg("");
 
     try {
-      await sendPasswordResetEmail(auth, email.trim());
+      const signInMethods = await fetchSignInMethodsForEmail(
+        auth,
+        normalizedEmail,
+      );
+
+      if (signInMethods.length === 0) {
+        setErrorMsg("No encontramos una cuenta asociada a ese correo.");
+        setEstado("error");
+        return;
+      }
+
+      await sendPasswordResetEmail(auth, normalizedEmail);
       setEstado("enviado");
     } catch (error: any) {
-      setErrorMsg(
-        error.code === "auth/user-not-found"
-          ? "No encontramos una cuenta con ese correo"
-          : "Ocurrió un error. Intenta de nuevo"
-      );
+      if (error.code === "auth/network-request-failed") {
+        setErrorMsg(
+          "No hay conexión. Verifica tu internet e inténtalo de nuevo.",
+        );
+      } else if (error.code === "auth/invalid-email") {
+        setErrorMsg("Ingresa un correo válido.");
+      } else if (error.code === "auth/too-many-requests") {
+        setErrorMsg("Demasiados intentos. Intenta de nuevo más tarde.");
+      } else if (error.code === "auth/user-not-found") {
+        setErrorMsg("No encontramos una cuenta asociada a ese correo.");
+      } else {
+        setErrorMsg("Ocurrió un error al validar el correo. Intenta de nuevo.");
+      }
       setEstado("error");
     }
   };
@@ -72,7 +97,10 @@ export default function Recuperar() {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.retryBtn}
-            onPress={() => { setEstado("idle"); setEmail(""); }}
+            onPress={() => {
+              setEstado("idle");
+              setEmail("");
+            }}
           >
             <Text style={styles.retryText}>Usar otro correo</Text>
           </TouchableOpacity>
@@ -89,17 +117,16 @@ export default function Recuperar() {
         style={styles.kav}
       >
         <View style={styles.container}>
-
           {/* Botón volver */}
-          <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => router.back()}
+          >
             <Text style={styles.backArrow}>←</Text>
           </TouchableOpacity>
 
           {/* Logo */}
-          <Image
-            source={require("../../Logo Chef.png")}
-            style={styles.logo}
-          />
+          <Image source={require("../../Logo Chef.png")} style={styles.logo} />
 
           {/* Textos */}
           <Text style={styles.title}>¿Olvidaste tu{"\n"}contraseña?</Text>
@@ -113,18 +140,16 @@ export default function Recuperar() {
             <TextInput
               placeholder="correo@dominio.com"
               placeholderTextColor="#bbb"
-              style={[
-                styles.input,
-                estado === "error" && styles.inputError,
-              ]}
+              style={[styles.input, estado === "error" && styles.inputError]}
               value={email}
               onChangeText={(v) => {
-                setEmail(v);
+                setEmail(limitText(v, FORM_LIMITS.resetEmail));
                 if (estado === "error") setEstado("idle");
               }}
               autoCapitalize="none"
               keyboardType="email-address"
               autoCorrect={false}
+              maxLength={FORM_LIMITS.resetEmail}
             />
             {estado === "error" && (
               <Text style={styles.errorText}>⚠ {errorMsg}</Text>
@@ -148,7 +173,6 @@ export default function Recuperar() {
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={styles.backText}>← Volver al inicio de sesión</Text>
           </TouchableOpacity>
-
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
