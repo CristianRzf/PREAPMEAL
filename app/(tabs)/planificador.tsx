@@ -736,7 +736,7 @@ export default function Planificador() {
           onPress={() =>
             router.push({
               pathname: "/(tabs)/",
-              params: { tab: "Nutrición" },
+              params: { tab: "nutricion" },
             } as any)
           }
         >
