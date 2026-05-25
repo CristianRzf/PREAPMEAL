@@ -385,7 +385,7 @@ export default function Inventario() {
         location: newLocation,
         category: newCategory,
         notes: newNotes,
-        photoUrl: newPhotoUrl || undefined,
+        photoUrl: newPhotoUrl || "",
         expirationDate: expirationDate?.toISOString(),
         notificationIds,
       });
@@ -396,7 +396,7 @@ export default function Inventario() {
         location: newLocation,
         category: newCategory,
         notes: newNotes,
-        photoUrl: newPhotoUrl || undefined,
+        photoUrl: newPhotoUrl || "",
         expirationDate: expirationDate?.toISOString(),
         notificationIds,
       });
@@ -485,9 +485,7 @@ export default function Inventario() {
         {item.photoUrl ? (
           <Image source={{ uri: item.photoUrl }} style={styles.itemPhoto} />
         ) : (
-          <View style={styles.itemPhotoPlaceholder}>
-            <Text style={styles.itemPhotoPlaceholderText}>🍅</Text>
-          </View>
+          <View style={styles.itemPhotoPlaceholder} />
         )}
       </View>
 
