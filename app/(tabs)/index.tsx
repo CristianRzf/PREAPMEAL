@@ -14,8 +14,7 @@ import {
   orderBy,
   query,
   setDoc,
-  updateDoc,
-  where,
+  updateDoc
 } from "firebase/firestore";
 import * as Icons from "phosphor-react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -37,15 +36,14 @@ import {
 } from "react-native";
 import Animated, {
   interpolate,
-  runOnJS,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
-  withTiming,
+  withTiming
 } from "react-native-reanimated";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Circle, G, Path, Text as SvgText, Rect } from "react-native-svg";
+import Svg, { Circle, G, Path, Rect, Text as SvgText } from "react-native-svg";
 import { auth, db } from "../../config/firebase";
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
@@ -85,13 +83,12 @@ type WeekDay = {
   kcal: number;
 };
 
-interface RecetaComunidad {
+// ── NUEVO: tipo para usuarios de comunidad ──
+interface UsuarioComunidad {
   id: string;
-  titulo: string;
-  imagen: string;
+  displayName: string;
   username: string;
-  calorias: number;
-  userId: string;
+  photoURL: string;
 }
 
 // ─── Constantes ───────────────────────────────────────────────────────────────
@@ -548,8 +545,8 @@ export default function Home() {
   const [editandoTx, setEditandoTx] = useState<Transaction | null>(null);
   const [txForm, setTxForm] = useState({ monto: "", categoria: "Supermercado", descripcion: "", fecha: "" });
 
-  // ── Estado comunidad ──
-  const [recetasComunidad, setRecetasComunidad] = useState<RecetaComunidad[]>([]);
+  // ── Estado comunidad: ahora carga USUARIOS en lugar de recetas ──
+  const [usuariosComunidad, setUsuariosComunidad] = useState<UsuarioComunidad[]>([]);
   const [loadingComunidad, setLoadingComunidad] = useState(true);
 
   // ── Estado semanal nutrición ──
@@ -702,19 +699,35 @@ export default function Home() {
     }
   };
 
-  // ── Carga comunidad ──
-  useEffect(() => { cargarComunidad(); }, []);
+  // ── Carga comunidad: ahora carga USUARIOS reales ──
+  useEffect(() => {
+    cargarComunidad();
+  }, [userId]);
 
   const cargarComunidad = async () => {
     setLoadingComunidad(true);
     try {
-      const q = query(collection(db, "public_recipes"), orderBy("creadoEn", "desc"), limit(6));
-      const snap = await getDocs(q);
-      setRecetasComunidad(snap.docs.map((d) => ({
-        id: d.id, titulo: d.data().titulo || "", imagen: d.data().imagen || "",
-        username: d.data().username || "", calorias: d.data().calorias || 0, userId: d.data().userId || "",
-      })));
-    } catch (e) { console.error(e); } finally { setLoadingComunidad(false); }
+      const snap = await getDocs(
+        query(collection(db, "users"), limit(10))
+      );
+      const lista: UsuarioComunidad[] = snap.docs
+        .filter((d) => d.id !== userId) // excluir al usuario actual
+        .slice(0, 3)
+        .map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            displayName: data.displayName || data.nombre || data.username || "Chef",
+            username: data.username || "",
+            photoURL: data.photoURL || data.foto || "",
+          };
+        });
+      setUsuariosComunidad(lista);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingComunidad(false);
+    }
   };
 
   // ── Carga semanal nutrición ──
@@ -1016,11 +1029,11 @@ export default function Home() {
               })}
             </View>
 
-            {/* Comunidad */}
+            {/* ══ COMUNIDAD: ahora muestra USUARIOS reales ══ */}
             <View style={styles.comunidadHeader}>
               <View>
                 <Text style={styles.sectionTitle}>Comunidad</Text>
-                <Text style={styles.comunidadSub}>Recetas recientes</Text>
+                <Text style={styles.comunidadSub}>Personas que quizás conoces</Text>
               </View>
               <TouchableOpacity style={styles.comunidadVerTodo} onPress={() => router.push("/comunidad" as any)}>
                 <Text style={styles.comunidadVerTodoText}>Ver todo</Text>
@@ -1030,40 +1043,61 @@ export default function Home() {
 
             {loadingComunidad ? (
               <ActivityIndicator color="#C4918A" style={{ marginBottom: 16 }} />
-            ) : recetasComunidad.length === 0 ? (
+            ) : usuariosComunidad.length === 0 ? (
               <View style={styles.comunidadEmpty}>
                 <Icons.UsersIcon size={32} color="#C4918A" weight="thin" />
-                <Text style={styles.comunidadEmptyText}>Aún no hay recetas en la comunidad</Text>
+                <Text style={styles.comunidadEmptyText}>Aún no hay usuarios en la comunidad</Text>
                 <TouchableOpacity style={styles.comunidadEmptyBtn} onPress={() => router.push("/recetas" as any)}>
                   <Text style={styles.comunidadEmptyBtnText}>Publicar receta</Text>
                 </TouchableOpacity>
               </View>
             ) : (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.comunidadScroll} contentContainerStyle={{ paddingRight: 20 }}>
-                {recetasComunidad.map((receta) => (
-                  <TouchableOpacity key={receta.id} style={styles.comunidadCard} onPress={() => router.push("/recetas" as any)} activeOpacity={0.88}>
-                    {receta.imagen ? (
-                      <Image source={{ uri: receta.imagen }} style={styles.comunidadCardImg} resizeMode="cover" />
+              <View style={{ marginBottom: 16, gap: 10 }}>
+                {usuariosComunidad.map((usuario) => (
+                  <TouchableOpacity
+                    key={usuario.id}
+                    style={styles.usuarioComunidadRow}
+                    onPress={() =>
+                      router.push({ pathname: "/perfilPublico", params: { uid: usuario.id } } as any)
+                    }
+                    activeOpacity={0.85}
+                  >
+                    {usuario.photoURL ? (
+                      <Image
+                        source={{ uri: usuario.photoURL }}
+                        style={styles.usuarioComunidadAvatar}
+                      />
                     ) : (
-                      <View style={[styles.comunidadCardImg, styles.comunidadCardImgPlaceholder]}>
-                        <Icons.BowlFoodIcon size={28} color="#C4918A" weight="thin" />
+                      <View style={[styles.usuarioComunidadAvatar, styles.usuarioComunidadAvatarPlaceholder]}>
+                        <Icons.UserIcon size={22} color="#C4918A" weight="thin" />
                       </View>
                     )}
-                    <View style={styles.comunidadCardOverlay} />
-                    <View style={styles.comunidadCardInfo}>
-                      <Text style={styles.comunidadCardTitulo} numberOfLines={2}>{receta.titulo}</Text>
-                      <TouchableOpacity onPress={() => router.push({ pathname: "/perfilPublico", params: { uid: receta.userId } } as any)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                        <Text style={styles.comunidadCardAutor}>@{receta.username}</Text>
-                      </TouchableOpacity>
-                      <Text style={styles.comunidadCardKcal}>{receta.calorias} kcal</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: "700", color: "#2c1810" }}>
+                        {usuario.displayName}
+                      </Text>
+                      {usuario.username ? (
+                        <Text style={{ fontSize: 12, color: "#aaa" }}>@{usuario.username}</Text>
+                      ) : null}
+                      <Text style={{ fontSize: 11, color: "#C4918A", marginTop: 1 }}>Sugerido para ti</Text>
                     </View>
+                    <TouchableOpacity
+                      style={styles.seguirBtn}
+                      onPress={() => router.push("/comunidad" as any)}
+                    >
+                      <Text style={styles.seguirBtnText}>Seguir</Text>
+                    </TouchableOpacity>
                   </TouchableOpacity>
                 ))}
-                <TouchableOpacity style={styles.comunidadCardVerMas} onPress={() => router.push("/comunidad" as any)} activeOpacity={0.8}>
-                  <Icons.ArrowRightIcon size={28} color="#C4918A" weight="bold" />
-                  <Text style={styles.comunidadCardVerMasText}>Ver{"\n"}más</Text>
+                <TouchableOpacity
+                  style={{ alignItems: "center", paddingVertical: 8 }}
+                  onPress={() => router.push("/comunidad" as any)}
+                >
+                  <Text style={{ fontSize: 13, color: "#C4918A", fontWeight: "600" }}>
+                    Ver todos →
+                  </Text>
                 </TouchableOpacity>
-              </ScrollView>
+              </View>
             )}
           </>
         )}
@@ -1601,4 +1635,38 @@ const styles = StyleSheet.create({
   checkLabel: { fontSize: 13, color: "#2c1810" },
   fabContainer: { position: "absolute", bottom: 30, right: 20, zIndex: 1000 },
   fab: { width: 56, height: 56, borderRadius: 28, backgroundColor: "#C4918A", justifyContent: "center", alignItems: "center", shadowColor: "#C4918A", shadowOpacity: 0.4, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 8 },
+  // ── Nuevos estilos para usuarios de comunidad ──
+  usuarioComunidadRow: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    shadowColor: "#000",
+    shadowOpacity: 0.04,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  usuarioComunidadAvatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+  },
+  usuarioComunidadAvatarPlaceholder: {
+    backgroundColor: "#FFF4EE",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  seguirBtn: {
+    backgroundColor: "#C4918A",
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  seguirBtnText: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "700",
+  },
 });
