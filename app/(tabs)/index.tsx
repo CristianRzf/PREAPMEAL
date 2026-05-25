@@ -1,3 +1,4 @@
+import { useFocusEffect } from "@react-navigation/native";
 import * as Haptics from "expo-haptics";
 import { router, useLocalSearchParams } from "expo-router";
 import { getAuth, onAuthStateChanged, signOut } from "firebase/auth";
@@ -12,8 +13,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import * as Icons from "phosphor-react-native";
-import { useEffect, useState, useCallback } from "react";
-import { useFocusEffect } from "@react-navigation/native";
+import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
