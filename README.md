@@ -187,7 +187,6 @@ colores (n fresco >7 días, n por vencer 3-7 días, n próximo <3 días, n venci
 - RF-05.2.1: Botón '+' abre formulario con: nombre (requerido), cantidad (requerido), unidad, ubicación, fecha de
 vencimiento (requerido), categoría, notas
 - RF-05.2.2: Al guardar, crear documento en Firestore users/{userId}/pantry_inventory/{itemId}
-- RF-05.2.3: Sugerencia opcional al completar lista de compras: '¿Agregar estos items a inventario?'
 
 *RF-05.3: Editar Item del Inventario*
 - RF-05.3.1: Al presionar item, abrir detalle/edición con todos los campos editables
