@@ -480,7 +480,10 @@ export default function Inventario() {
   };
 
   const renderItem = ({ item }: { item: Item }) => (
-    <View style={styles.itemCard}>
+    <TouchableOpacity
+      style={styles.itemCard}
+      onPress={() => openEditModal(item)}
+    >
       <View style={styles.itemPhotoContainer}>
         {item.photoUrl ? (
           <Image source={{ uri: item.photoUrl }} style={styles.itemPhoto} />
@@ -524,7 +527,7 @@ export default function Inventario() {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 
   return (

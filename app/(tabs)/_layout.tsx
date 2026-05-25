@@ -1,7 +1,20 @@
-import { Tabs } from 'expo-router';
+import { Tabs, router } from 'expo-router';
 import CustomTabs from '../../componentes/CustomTabs';
+import * as notifications from 'expo-notifications';
+import { useEffect } from 'react';
+
 
 export default function TabsLayout() {
+  useEffect(() => {
+    const subscription = notifications.addNotificationResponseReceivedListener(() => {
+      router.push('/inventario');
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   return (
     <Tabs
       tabBar={(props) => <CustomTabs {...props} />}
