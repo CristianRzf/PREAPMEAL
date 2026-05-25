@@ -18,6 +18,7 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  FlatList,
   Image,
   ImageBackground,
   Modal,
@@ -99,6 +100,13 @@ interface RecetaItem {
   tiempo: number;
   dificultad: string;
   username?: string;
+}
+
+interface UserListItem {
+  uid: string;
+  username: string;
+  displayName: string;
+  fotoPerfil?: string;
 }
 
 const ACTIVIDAD_FACTORES: Record<string, number> = {
@@ -183,6 +191,12 @@ export default function Perfil() {
 
   // ── Modal foto blur ────────────────────────────────────────────────────────
   const [fotoModalVisible, setFotoModalVisible] = useState(false);
+
+  // ── Modales lista seguidores/siguiendo ────────────────────────────────────
+  const [listaModalVisible, setListaModalVisible] = useState(false);
+  const [tipoLista, setTipoLista] = useState<"seguidores" | "siguiendo">("seguidores");
+  const [listaUsuarios, setListaUsuarios] = useState<UserListItem[]>([]);
+  const [loadingLista, setLoadingLista] = useState(false);
 
   const [misRecetas, setMisRecetas] = useState<RecetaItem[]>([]);
   const [loadingRecetas, setLoadingRecetas] = useState(false);
@@ -269,6 +283,43 @@ export default function Perfil() {
       setSavedRecetas(snap.docs.map((d) => ({ id: d.id, ...d.data() } as RecetaItem)));
     } catch (e) { console.error(e); }
     finally { setLoadingSaved(false); }
+  };
+
+  // ── Abre modal lista seguidores/siguiendo ─────────────────────────────────
+  const abrirLista = async (tipo: "seguidores" | "siguiendo") => {
+    if (!user) return;
+    setTipoLista(tipo);
+    setListaModalVisible(true);
+    setLoadingLista(true);
+    try {
+      const colRef = tipo === "seguidores"
+        ? collection(db, "users", user.uid, "followers")
+        : collection(db, "users", user.uid, "following");
+      const snap = await getDocs(colRef);
+      const lista: UserListItem[] = [];
+      for (const d of snap.docs) {
+        try {
+          const userSnap = await getDoc(doc(db, "users", d.id));
+          if (userSnap.exists()) {
+            lista.push({
+              uid: d.id,
+              username: userSnap.data().username || d.data().username || "",
+              displayName: userSnap.data().displayName || d.data().displayName || "",
+              fotoPerfil: userSnap.data().fotoPerfil || d.data().fotoPerfil || "",
+            });
+          } else {
+            lista.push({
+              uid: d.id,
+              username: d.data().username || "",
+              displayName: d.data().displayName || "",
+              fotoPerfil: d.data().fotoPerfil || "",
+            });
+          }
+        } catch { /* omite si falla */ }
+      }
+      setListaUsuarios(lista);
+    } catch (e) { console.error(e); }
+    finally { setLoadingLista(false); }
   };
 
   const logout = async () => { await signOut(auth); router.replace("/(auth)/login"); };
@@ -378,6 +429,11 @@ export default function Perfil() {
                 <View style={styles.avatar}><Ionicons name="person" size={44} color="#bbb" /></View>
               )}
             </View>
+            {fotoPerfil && (
+              <View style={styles.avatarExpandHint}>
+                <Ionicons name="expand-outline" size={12} color="#fff" />
+              </View>
+            )}
           </TouchableOpacity>
           {usernameIsSet
             ? <Text style={styles.username}>{username}</Text>
@@ -392,21 +448,21 @@ export default function Perfil() {
           )}
         </View>
 
-        {/* Stats */}
+        {/* Stats — Seguidores y Siguiendo tappables */}
         <View style={styles.statsRow}>
           <TouchableOpacity style={styles.statItem} onPress={() => setActiveTab("Recetas")}>
             <Text style={styles.statNumber}>{misRecetas.length}</Text>
             <Text style={styles.statLabel}>Recetas</Text>
           </TouchableOpacity>
           <View style={styles.statDivider} />
-          <TouchableOpacity style={styles.statItem}>
+          <TouchableOpacity style={styles.statItem} onPress={() => abrirLista("seguidores")}>
             <Text style={styles.statNumber}>{seguidores}</Text>
-            <Text style={styles.statLabel}>Seguidores</Text>
+            <Text style={[styles.statLabel, { color: COLORS.card }]}>Seguidores</Text>
           </TouchableOpacity>
           <View style={styles.statDivider} />
-          <TouchableOpacity style={styles.statItem}>
+          <TouchableOpacity style={styles.statItem} onPress={() => abrirLista("siguiendo")}>
             <Text style={styles.statNumber}>{siguiendo}</Text>
-            <Text style={styles.statLabel}>Siguiendo</Text>
+            <Text style={[styles.statLabel, { color: COLORS.card }]}>Siguiendo</Text>
           </TouchableOpacity>
         </View>
 
@@ -552,10 +608,9 @@ export default function Perfil() {
         <View style={{ height: 40 }} />
       </ScrollView>
 
-      {/* ── Modal foto de perfil estilo Instagram ────────────────────────── */}
+      {/* ── Modal foto blur estilo Instagram ─────────────────────────────── */}
       <Modal visible={fotoModalVisible} transparent animationType="fade" statusBarTranslucent>
         <View style={styles.fotoModalContainer}>
-          {/* Fondo blur usando ImageBackground desenfocada */}
           {fotoPerfil && (
             <ImageBackground
               source={{ uri: fotoPerfil }}
@@ -565,27 +620,73 @@ export default function Perfil() {
               <View style={styles.fotoModalDimmer} />
             </ImageBackground>
           )}
-
-          {/* Botón cerrar */}
           <TouchableOpacity style={styles.fotoModalClose} onPress={() => setFotoModalVisible(false)}>
             <Ionicons name="close" size={26} color="#fff" />
           </TouchableOpacity>
-
-          {/* Foto circular centrada */}
           {fotoPerfil && (
             <View style={styles.fotoModalImgWrapper}>
-              <Image
-                source={{ uri: fotoPerfil }}
-                style={styles.fotoModalImg}
-                resizeMode="cover"
-              />
+              <Image source={{ uri: fotoPerfil }} style={styles.fotoModalImg} resizeMode="cover" />
             </View>
           )}
-
-          {/* Nombre debajo */}
           <Text style={styles.fotoModalNombre}>{displayName}</Text>
           {usernameIsSet && <Text style={styles.fotoModalUsername}>{username}</Text>}
         </View>
+      </Modal>
+
+      {/* ── Modal lista seguidores / siguiendo ───────────────────────────── */}
+      <Modal visible={listaModalVisible} animationType="slide" statusBarTranslucent>
+        <SafeAreaView style={{ flex: 1, backgroundColor: COLORS.bg }}>
+          <View style={styles.listaHeader}>
+            <TouchableOpacity onPress={() => setListaModalVisible(false)} style={styles.listaBackBtn}>
+              <Ionicons name="chevron-back" size={24} color={COLORS.text} />
+            </TouchableOpacity>
+            <Text style={styles.listaTitle}>
+              {tipoLista === "seguidores" ? `Seguidores (${seguidores})` : `Siguiendo (${siguiendo})`}
+            </Text>
+            <View style={{ width: 40 }} />
+          </View>
+
+          {loadingLista ? (
+            <View style={styles.centered}><ActivityIndicator size="large" color={COLORS.card} /></View>
+          ) : listaUsuarios.length === 0 ? (
+            <View style={styles.centered}>
+              <Ionicons name="people-outline" size={48} color={COLORS.card} style={{ opacity: 0.4 }} />
+              <Text style={styles.emptyText}>
+                {tipoLista === "seguidores" ? "Sin seguidores aún" : "No sigues a nadie aún"}
+              </Text>
+            </View>
+          ) : (
+            <FlatList
+              data={listaUsuarios}
+              keyExtractor={(u) => u.uid}
+              contentContainerStyle={{ padding: 16, gap: 12 }}
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.listaUserCard}
+                  onPress={() => {
+                    setListaModalVisible(false);
+                    setTimeout(() => {
+                      router.push({ pathname: "/(tabs)/perfilPublico", params: { uid: item.uid } } as any);
+                    }, 300);
+                  }}
+                >
+                  {item.fotoPerfil ? (
+                    <Image source={{ uri: item.fotoPerfil }} style={styles.listaAvatar} />
+                  ) : (
+                    <View style={styles.listaAvatarPlaceholder}>
+                      <Ionicons name="person" size={20} color="#bbb" />
+                    </View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.listaDisplayName}>{item.displayName || item.username}</Text>
+                    <Text style={styles.listaUsername}>@{item.username}</Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={COLORS.textMuted} />
+                </TouchableOpacity>
+              )}
+            />
+          )}
+        </SafeAreaView>
       </Modal>
 
       {/* Modal Editar Perfil */}
@@ -605,7 +706,6 @@ export default function Perfil() {
           </View>
 
           <ScrollView contentContainerStyle={styles.modalBody} showsVerticalScrollIndicator={false}>
-
             <View style={styles.modalAvatarSection}>
               <TouchableOpacity style={styles.avatarEditContainer} onPress={seleccionarFotoPerfil} disabled={uploadingFoto}>
                 {fotoPerfilLocal || form.fotoPerfil ? (
@@ -716,7 +816,7 @@ export default function Perfil() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: COLORS.bg },
-  centered: { flex: 1, justifyContent: "center", alignItems: "center" },
+  centered: { flex: 1, justifyContent: "center", alignItems: "center", gap: 10 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 20 },
 
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", paddingTop: 16, paddingBottom: 16 },
@@ -730,6 +830,7 @@ const styles = StyleSheet.create({
   avatarRing: { width: 96, height: 96, borderRadius: 48, borderWidth: 2.5, borderColor: COLORS.card, padding: 3, justifyContent: "center", alignItems: "center", marginBottom: 10, overflow: "hidden" },
   avatar: { width: 84, height: 84, borderRadius: 42, backgroundColor: "#e8e8e8", justifyContent: "center", alignItems: "center", overflow: "hidden" },
   avatarImage: { width: 90, height: 90, borderRadius: 45 },
+  avatarExpandHint: { position: "absolute", bottom: 12, right: 0, backgroundColor: "rgba(0,0,0,0.45)", borderRadius: 8, padding: 3 },
   username: { fontSize: 16, fontWeight: "700", color: COLORS.text, marginBottom: 2 },
   usernameEmpty: { fontSize: 13, color: "#aaa", fontStyle: "italic", marginBottom: 2 },
   displayName: { fontSize: 13, color: COLORS.textMuted, marginBottom: 4 },
@@ -788,91 +889,57 @@ const styles = StyleSheet.create({
   emptyBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 
   // ── Modal foto blur ────────────────────────────────────────────────────────
-  fotoModalContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  fotoModalDimmer: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(0,0,0,0.55)",
-  },
-  fotoModalClose: {
-    position: "absolute",
-    top: 56,
-    right: 20,
-    zIndex: 10,
-    backgroundColor: "rgba(255,255,255,0.18)",
-    borderRadius: 20,
-    padding: 8,
-  },
+  fotoModalContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
+  fotoModalDimmer: { ...StyleSheet.absoluteFillObject, backgroundColor: "rgba(0,0,0,0.55)" },
+  fotoModalClose: { position: "absolute", top: 56, right: 20, zIndex: 10, backgroundColor: "rgba(255,255,255,0.18)", borderRadius: 20, padding: 8 },
   fotoModalImgWrapper: {
-    width: width * 0.72,
-    height: width * 0.72,
-    borderRadius: (width * 0.72) / 2,
-    overflow: "hidden",
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.3)",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 10,
+    width: width * 0.72, height: width * 0.72, borderRadius: (width * 0.72) / 2,
+    overflow: "hidden", borderWidth: 3, borderColor: "rgba(255,255,255,0.3)",
+    shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.4, shadowRadius: 20, elevation: 10,
   },
-  fotoModalImg: {
-    width: "100%",
-    height: "100%",
-  },
-  fotoModalNombre: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "700",
-    marginTop: 20,
-    textShadowColor: "rgba(0,0,0,0.5)",
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 4,
-  },
-  fotoModalUsername: {
-    color: "rgba(255,255,255,0.75)",
-    fontSize: 14,
-    marginTop: 4,
-  },
+  fotoModalImg: { width: "100%", height: "100%" },
+  fotoModalNombre: { color: "#fff", fontSize: 18, fontWeight: "700", marginTop: 20, textShadowColor: "rgba(0,0,0,0.5)", textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4 },
+  fotoModalUsername: { color: "rgba(255,255,255,0.75)", fontSize: 14, marginTop: 4 },
+
+  // ── Modal lista ────────────────────────────────────────────────────────────
+  listaHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+  listaBackBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: COLORS.bg, justifyContent: "center", alignItems: "center" },
+  listaTitle: { fontSize: 16, fontWeight: "700", color: COLORS.text },
+  listaUserCard: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.surface, borderRadius: 14, padding: 12, gap: 12 },
+  listaAvatar: { width: 46, height: 46, borderRadius: 23, borderWidth: 1.5, borderColor: COLORS.card },
+  listaAvatarPlaceholder: { width: 46, height: 46, borderRadius: 23, backgroundColor: "#e8e8e8", justifyContent: "center", alignItems: "center" },
+  listaDisplayName: { fontSize: 14, fontWeight: "700", color: COLORS.text },
+  listaUsername: { fontSize: 12, color: COLORS.textMuted, marginTop: 1 },
 
   // Modal editar
   modalHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, backgroundColor: COLORS.surface, borderBottomWidth: 1, borderBottomColor: COLORS.border },
   modalTitle: { fontSize: 17, fontWeight: "700", color: COLORS.text },
   modalSaveBtn: { fontSize: 15, fontWeight: "700", color: COLORS.card },
   modalBody: { padding: 20 },
-
   modalAvatarSection: { alignItems: "center", marginBottom: 24 },
   avatarEditContainer: { position: "relative", marginBottom: 8 },
   modalAvatar: { width: 90, height: 90, borderRadius: 45, backgroundColor: "#e8e8e8", justifyContent: "center", alignItems: "center", borderWidth: 2.5, borderColor: COLORS.card },
   modalAvatarImage: { width: 90, height: 90, borderRadius: 45, borderWidth: 2.5, borderColor: COLORS.card },
   cameraOverlay: { position: "absolute", bottom: 0, right: 0, width: 28, height: 28, borderRadius: 14, backgroundColor: COLORS.card, justifyContent: "center", alignItems: "center", borderWidth: 2, borderColor: COLORS.surface },
   changePhoto: { fontSize: 12, color: COLORS.textMuted },
-
   fieldLabel: { fontSize: 13, fontWeight: "700", color: COLORS.text, marginBottom: 6 },
   fieldHint: { fontSize: 11, color: "#aaa", marginBottom: 10 },
   input: { backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 11, fontSize: 14, color: COLORS.text, marginBottom: 14 },
   row2: { flexDirection: "row", gap: 12 },
-
   usernameInputRow: { flexDirection: "row", alignItems: "center", backgroundColor: COLORS.surface, borderWidth: 1.5, borderColor: COLORS.border, borderRadius: 12, overflow: "hidden", marginBottom: 4 },
   atSign: { paddingHorizontal: 12, paddingVertical: 12, backgroundColor: "#f5f5f5", borderRightWidth: 1.5, borderRightColor: COLORS.border },
   atText: { fontSize: 15, fontWeight: "700", color: COLORS.card },
   usernameInput: { flex: 1, paddingHorizontal: 12, paddingVertical: 12, fontSize: 14, color: COLORS.text },
-
   calcCard: { backgroundColor: COLORS.surface, borderRadius: 14, padding: 14, marginTop: 14, borderWidth: 1.5, borderColor: "#F0E4E2" },
   calcHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 6 },
   calcTitle: { fontSize: 13, fontWeight: "600", color: COLORS.card },
   tdeeNum: { fontSize: 26, fontWeight: "800", color: COLORS.text, marginBottom: 10 },
   calcNote: { fontSize: 10, color: "#aaa", textAlign: "center", marginTop: 4 },
-
   alergiasGridForm: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginTop: 4 },
   alergiaChipForm: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20, borderWidth: 1.5, borderColor: COLORS.border, backgroundColor: COLORS.surface },
   alergiaChipFormActive: { borderColor: "#e53935", backgroundColor: "#FFEBEE" },
   alergiaChipText: { fontSize: 13, color: COLORS.textMuted, fontWeight: "500" },
   alergiaChipTextActive: { color: "#c62828", fontWeight: "700" },
-
   saveButton: { backgroundColor: COLORS.card, paddingVertical: 15, borderRadius: 14, alignItems: "center", marginTop: 16 },
   saveButtonText: { color: "#fff", fontWeight: "800", fontSize: 15 },
 });
