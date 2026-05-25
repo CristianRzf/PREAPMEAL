@@ -1,8 +1,6 @@
 import { router } from "expo-router";
-import {
-    fetchSignInMethodsForEmail,
-    sendPasswordResetEmail,
-} from "firebase/auth";
+import { sendPasswordResetEmail } from "firebase/auth";
+import { collection, getDocs, query, where } from "firebase/firestore";
 import { useState } from "react";
 import {
     ActivityIndicator,
@@ -16,8 +14,13 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { auth } from "../../config/firebase";
-import { isValidEmail, normalizeEmail } from "../../utils/formValidators";
+import { auth, db } from "../../config/firebase";
+import {
+    FORM_LIMITS,
+    isValidEmail,
+    limitText,
+    normalizeEmail,
+} from "../../utils/formValidators";
 
 type Estado = "idle" | "loading" | "enviado" | "error";
 
@@ -44,12 +47,13 @@ export default function Recuperar() {
     setErrorMsg("");
 
     try {
-      const signInMethods = await fetchSignInMethodsForEmail(
-        auth,
-        normalizedEmail,
+      const usersQuery = query(
+        collection(db, "users"),
+        where("email", "==", normalizedEmail),
       );
+      const usersSnap = await getDocs(usersQuery);
 
-      if (signInMethods.length === 0) {
+      if (usersSnap.empty) {
         setErrorMsg("No encontramos una cuenta asociada a ese correo.");
         setEstado("error");
         return;
