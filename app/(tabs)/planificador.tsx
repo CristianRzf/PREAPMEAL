@@ -423,7 +423,7 @@ export default function Planificador() {
       for (const slot of todasRecetas) {
         const receta = recetasFirestore.find((r) => r.id === slot.recetaId);
         if (!receta) continue;
-        for (const ing of receta.ingredientes) {
+        for (const ing of receta.ingredientes??[]) {
           const key = ing.nombre.toLowerCase();
           if (consolidado[key]) {
             consolidado[key].cantidad += ing.cantidad * slot.porciones;

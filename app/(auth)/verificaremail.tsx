@@ -1,4 +1,3 @@
-import { auth } from "../../config/firebase";
 import { router } from "expo-router";
 import { sendEmailVerification } from "firebase/auth";
 import { useEffect, useRef, useState } from "react";
@@ -10,6 +9,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { auth } from "../../config/firebase";
 
 export default function VerifyEmail() {
   const [loading, setLoading] = useState(false);
@@ -18,21 +18,27 @@ export default function VerifyEmail() {
 
   // 🔄 Detectar cuando el usuario vuelve a la app (PRO)
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", async (nextState) => {
-      if (
-        appState.current.match(/inactive|background/) &&
-        nextState === "active"
-      ) {
-        await auth.currentUser?.reload();
+    const subscription = AppState.addEventListener(
+      "change",
+      async (nextState) => {
+        if (
+          appState.current.match(/inactive|background/) &&
+          nextState === "active"
+        ) {
+          await auth.currentUser?.reload();
 
-        if (auth.currentUser?.emailVerified) {
-          alert("Correo verificado automáticamente ✅");
-          router.replace("./(tabs)/index");
+          if (auth.currentUser?.emailVerified) {
+            alert("Correo verificado automáticamente ✅");
+            router.replace({
+              pathname: "/(tabs)/",
+              params: { tab: "inicio" },
+            } as any);
+          }
         }
-      }
 
-      appState.current = nextState;
-    });
+        appState.current = nextState;
+      },
+    );
 
     return () => subscription.remove();
   }, []);
@@ -55,7 +61,10 @@ export default function VerifyEmail() {
 
     if (auth.currentUser?.emailVerified) {
       alert("Correo verificado ✅");
-      router.replace("./(tabs)/index");
+      router.replace({
+        pathname: "/(tabs)/",
+        params: { tab: "inicio" },
+      } as any);
     } else {
       alert("Aún no has verificado tu correo ❌");
     }
@@ -73,7 +82,7 @@ export default function VerifyEmail() {
       setResendCooldown(30); // ⏱️ 30 segundos
     } catch (error: any) {
       alert("Error al reenviar: " + error.message);
-      console.log("Error al reenviar correo de verificación:", error );
+      console.log("Error al reenviar correo de verificación:", error);
     }
   };
 
@@ -83,9 +92,8 @@ export default function VerifyEmail() {
 
       <Text style={styles.text}>
         Te enviamos un enlace de verificación a tu email.
-        {"\n\n"}
-        ✔ Revisa tu bandeja de entrada{"\n"}
-        ✔ También revisa spam o promociones
+        {"\n\n"}✔ Revisa tu bandeja de entrada{"\n"}✔ También revisa spam o
+        promociones
       </Text>
 
       {/* BOTÓN MANUAL (respaldo) */}
@@ -98,10 +106,7 @@ export default function VerifyEmail() {
       </TouchableOpacity>
 
       {/* REENVIAR */}
-      <TouchableOpacity
-        onPress={handleResend}
-        disabled={resendCooldown > 0}
-      >
+      <TouchableOpacity onPress={handleResend} disabled={resendCooldown > 0}>
         <Text style={styles.resend}>
           {resendCooldown > 0
             ? `Reenviar en ${resendCooldown}s`
